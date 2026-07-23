@@ -1,9 +1,13 @@
 [project]
-name = "regime-shift"
+name = "signals-before-storms"
 version = "0.1.0"
 description = "Macro-aware tactical asset allocation engine: HMM regime detection plus convex optimization, leak-proof walk-forward."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Anklesh Rawat" }]
+urls = { Homepage = "https://github.com/DogInfantry/Signals-Before-Storms" }
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
@@ -53,3 +57,8 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+]

@@ -1,0 +1,23 @@
+Signals-Before-Storms
+Copyright 2026 Anklesh Rawat (DogInfantry)
+
+This product includes software developed by Anklesh Rawat
+(https://github.com/DogInfantry/Signals-Before-Storms).
+
+Licensed under the Apache License, Version 2.0. Under Section 4(d) of that
+license, any redistribution or derivative work must include a readable copy of
+the attribution notices in this file.
+
+If you use this work, in whole or in part, in a paper, post, product, model,
+report or presentation, please credit it as:
+
+    Anklesh Rawat, "Signals-Before-Storms: a macro-aware tactical asset
+    allocation engine", 2026. https://github.com/DogInfantry/Signals-Before-Storms
+
+Third-party components remain under their own licenses. This project depends on,
+but does not redistribute, numpy, pandas, scipy, matplotlib, scikit-learn,
+hmmlearn, cvxpy, yfinance, pydantic and PyYAML.
+
+Market data is obtained at runtime from Yahoo Finance and the Federal Reserve
+Bank of St. Louis (FRED) and is not covered by this license. It is subject to
+those providers' own terms, and is not redistributed as part of this repository.
