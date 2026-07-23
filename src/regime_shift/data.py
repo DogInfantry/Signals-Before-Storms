@@ -80,18 +80,48 @@ def load_macro(series: list[str], start: str, end: str, use_cache: bool = True) 
     return pd.concat(frames, axis=1)
 
 
+def drop_return_outliers(returns: pd.DataFrame, max_abs: float) -> pd.DataFrame:
+    """NaN out log returns too large to be a market move, and say so.
+
+    A daily |log return| above ~0.5 (a 65% move) in a broad index or a liquid ETF is a vendor
+    error, not a market event. GOLDBEES.NS on Yahoo is the live example: it prints -4.61 on
+    2019-12-19 and +4.61 on 2019-12-23, a 100x round trip that inflates the series standard
+    deviation more than tenfold and quietly poisons every covariance, regime fit and Sharpe
+    downstream. Callers drop the flagged rows via the usual dropna.
+    """
+    bad = returns.abs() > max_abs
+    if bad.to_numpy().any():
+        for col in returns.columns[bad.any()]:
+            dates = returns.index[bad[col]]
+            warnings.warn(
+                f"{col}: {len(dates)} implausible log returns dropped "
+                f"(|r| > {max_abs}), e.g. {dates[0].date()}",
+                stacklevel=2,
+            )
+        returns = returns.mask(bad)
+    return returns
+
+
 def build_master(
-    universe: dict, start: str, end: str, macro: list[str] | None = None
+    universe: dict,
+    start: str,
+    end: str,
+    macro: list[str] | None = None,
+    max_abs_return: float = 0.5,
 ) -> pd.DataFrame:
     """Aligned frame of asset log-returns, VIX level, and (optionally) macro features.
 
     Macro is forward-filled onto the business-day grid and lagged one day, so a given row
     only ever uses macro values that were already published by the prior close. This is a
     pragmatic causal guard; true point-in-time vintages (ALFRED) would be stricter.
+
+    Returns beyond max_abs_return are treated as vendor errors and dropped; see
+    drop_return_outliers for why that guard is not optional.
     """
     prices = load_prices(universe, start, end)
     asset_cols = [c for c in _ASSET_ROLES if c in prices.columns]
     out = np.log(prices[asset_cols]).diff().add_suffix("_ret")
+    out = drop_return_outliers(out, max_abs_return)
     if "vix" in prices.columns:
         out["vix"] = prices["vix"]
 
