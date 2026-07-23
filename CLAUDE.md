@@ -122,7 +122,8 @@ skfolio, quantstats, arch.
   (ipykernel was added to the dev extra for this).
 - README.md: DONE. Leads with the negative result, both universes' tables, the why-it-loses
   section, the data-quality landmine, and the deflation rationale.
-- Full build plan (read this first): C:\Users\Anklesh\.claude\plans\c-users-anklesh-appdata-local-temp-proj-recursive-bentley.md
+- Full build plan: kept outside the repo in the local Claude Code plans directory, so it is not
+  fetchable from a clone. README.md plus this file carry everything needed to resume the work.
 
 ## Current state
 - Phases 0-9 DONE (everything except the optional narrate.py and the optional jumpmodels
