@@ -32,6 +32,9 @@ class Config(BaseModel):
     costs_bps: float
     weight_cap: float
     rebalance: str
+    rebalance_confirm_days: int = 3
+    conditional_moments: bool = True
+    conditional_min_obs: int = 126
 
 
 def _default_path() -> Path:

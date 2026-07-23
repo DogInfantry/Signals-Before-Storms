@@ -38,3 +38,6 @@ hmm:
 costs_bps: 7.5
 weight_cap: 0.6
 rebalance: "on_regime_change"   # or "monthly"
+rebalance_confirm_days: 3       # hysteresis: days a new regime must persist before we trade it
+conditional_moments: true       # estimate mu/Sigma from past days in the SAME regime
+conditional_min_obs: 126        # below this many same-regime days, fall back to all history
