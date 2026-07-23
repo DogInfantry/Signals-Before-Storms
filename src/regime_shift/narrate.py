@@ -7,4 +7,4 @@ when no API key is present, and caches responses.
 
 from __future__ import annotations
 
-# TODO(phase-8): narrate_regime(stats) -> str, guarded and cached; optional FinBERT sentiment feature.
+# TODO(phase-8): narrate_regime(stats) -> str, guarded and cached; optional FinBERT feature.
