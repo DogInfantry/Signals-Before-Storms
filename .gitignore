@@ -1,0 +1,30 @@
+# Claude Code / plugin local data (never commit)
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+uv.lock.bak
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Project data and outputs (cached, not versioned)
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
+
+# Env / secrets
+.env
+*.local

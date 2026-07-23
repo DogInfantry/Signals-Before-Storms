@@ -1,0 +1,40 @@
+# All tunable knobs live here. No magic numbers in code.
+seed: 42
+
+universes:
+  india:
+    equity: "^NSEI"          # NIFTY 50
+    bond: ""                 # resolve in phase 1: a gilt / long-duration proxy on Yahoo
+    gold: "GOLDBEES.NS"      # gold ETF in INR
+    vix: "^INDIAVIX"         # confirm history depth on first pull
+  us:
+    equity: "SPY"
+    bond: "TLT"
+    gold: "GLD"
+    vix: "^VIX"
+
+dates:
+  start: "2015-01-01"
+  end: "2024-01-01"
+
+features:
+  momentum_windows: [5, 21, 63, 126]
+  vol_windows: [5, 21, 63]
+
+# FRED series (avoid the retired ids: TEDRATE, STLFSI/2/3).
+macro_fred_series: ["T10Y2Y", "BAA10Y", "NFCI"]
+
+walkforward:
+  min_train: 252
+  test_size: 63
+  step: 63
+
+hmm:
+  n_states: 3
+  covariance_type: "diag"
+  n_iter: 200
+  tol: 0.01
+
+costs_bps: 7.5
+weight_cap: 0.6
+rebalance: "on_regime_change"   # or "monthly"
