@@ -1,270 +1,255 @@
 # CLAUDE.md - Signals-Before-Storms
 
 ## Project
-Signals-Before-Storms (repo name DECIDED 2026-07-24; verified free on GitHub, 404 under
-DogInfantry and 0 global name hits). Import package stays `regime_shift`, deliberately: renaming
-it would churn every import and test for no gain. Distribution name in pyproject is
-`signals-before-storms`. LICENSE is Apache-2.0 (copyright 2026 Anklesh Rawat (DogInfantry)) with a
-NOTICE file, chosen over MIT because Section 4 makes attribution an explicit condition and forces
-derivative works to carry NOTICE forward.
-Macro-Aware Tactical Asset Allocation Engine. Capstone for the Summer of Quant
-course. Detect hidden market regimes (Bull, Bear, Crisis) with a Hidden Markov Model, switch
-portfolio weights (equities, bonds, gold) via convex optimization per regime, validate
+**Signals-Before-Storms**: Macro-Aware Tactical Asset Allocation Engine. Capstone for the Summer
+of Quant course. Detect hidden market regimes (Bull, Bear, Crisis) with a Hidden Markov Model,
+switch portfolio weights (equity, bond/cash, gold) via convex optimization per regime, validate
 leak-proof with an expanding walk-forward, charge transaction costs, benchmark against static
-60/40 and equal-weight.
+60/40, equal weight and a no-HMM ablation.
 
-Stack: Python 3.11+ (env resolved to 3.13), uv-managed. numpy 2.5, pandas 3.0, scipy,
-matplotlib, scikit-learn 1.9, hmmlearn 0.3.3, cvxpy 1.9.2, yfinance 1.5.1 (+ curl_cffi),
-keyless FRED, pydantic, pyyaml. Optional extras: jumpmodels (NOT installed), PyPortfolioOpt,
-skfolio, quantstats, arch.
+**PUBLIC**: https://github.com/DogInfantry/Signals-Before-Storms (Apache-2.0, CI green).
+
+- Repo name decided 2026-07-24. Import package stays `regime_shift` deliberately: renaming would
+  churn every import and test for no gain. pyproject distribution name is `signals-before-storms`.
+- LICENSE is Apache-2.0, copyright `2026 Anklesh Rawat (DogInfantry)`, with a NOTICE file. Chosen
+  over MIT because Section 4 makes attribution an explicit condition and forces derivative works
+  to carry NOTICE forward.
+
+Stack: Python 3.11+ (env resolves to 3.13), uv-managed. numpy 2.5.1, pandas 3.0.5, scipy 1.18,
+matplotlib, scikit-learn 1.9, hmmlearn 0.3.3, cvxpy 1.9.2, yfinance 1.5.1 (+curl_cffi), keyless
+FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and working).
 
 ## Standing user rules (do not violate)
-- NEVER add Claude or any AI as contributor or Co-Authored-By in commits, PRs, or repo. Plain commits.
-- NO em dashes or en dashes anywhere (code, docs, prose, commits). Use hyphens, commas, or parentheses.
+- NEVER add Claude or any AI as contributor or Co-Authored-By in commits, PRs, or repo. Plain
+  commits.
+- NO em dashes or en dashes anywhere (code, docs, prose, commits). Use hyphens, commas, parens.
+- Do not push or create anything outward-facing without an explicit go-ahead.
 
 ## Architecture and key decisions
-- Two markets: India PRIMARY (^NSEI equity, GOLDBEES.NS gold, ^INDIAVIX) per graded spec; US as
-  out-of-sample robustness (SPY, TLT, GLD, ^VIX).
-- Modular src/ package plus one thin driver notebook (structure over single notebook).
-- Leak-proofing is the whole point: causal features, train-only standardization inside each
-  walk-forward fold, HMM re-fit per fold, CAUSAL decode of test regimes (no whole-block Viterbi),
-  1-day execution lag. Asserted by unit tests (done for features/regime/walkforward).
-- Regime label convention: canonical integer labels 0..n-1, ALWAYS ascending risk (0 = calmest
-  = Bull). REGIME_NAMES_3 = (Bull, Bear, Crisis). Stable across per-fold refits via vol ranking.
-- Research-grade differentiators: HMM vs Statistical Jump Model (jumpmodels) comparison on
-  persistence, turnover, net-of-cost Sharpe (flagship); FRED macro features; Ledoit-Wolf
-  covariance; convex max-Sharpe via Schaible transform; deflated/probabilistic Sharpe plus
-  bootstrap CIs; rule-based ablation; optional LLM regime narration (report-only, cannot leak).
+- Two markets: India PRIMARY (^NSEI, LIQUIDBEES.NS cash, GOLDBEES.NS, ^INDIAVIX) per the graded
+  spec; US as out-of-sample robustness (SPY, TLT, GLD, ^VIX).
+- Modular `src/` package plus one thin driver notebook (structure over a single mega-notebook).
+- Leak-proofing is the whole point: causal features, train-only standardization inside each fold,
+  model re-fit per fold, CAUSAL decode of test regimes (never whole-block Viterbi), 1-day
+  execution lag. Each is asserted by a unit test, not merely claimed.
+- Regime labels: canonical integers 0..n-1, ALWAYS ascending risk (0 = calmest = Bull).
+  `REGIME_NAMES_3 = (Bull, Bear, Crisis)`. Stable across per-fold refits via rank ordering.
+- ONE cost engine. `backtest.run_book` marks every book, strategy and benchmark alike, so the
+  comparison is like-for-like by construction. A benchmark costed differently is not a benchmark.
+- Results are deflated. Probabilistic + deflated Sharpe and a stationary bootstrap CI accompany
+  every headline number, with the trial count stated honestly.
 
 ## File map
-- config/config.yaml: all knobs (universes, dates, windows, HMM, costs, seed, rebalance +
-  rebalance_confirm_days). NOTE india.bond is EMPTY (TODO).
-- src/regime_shift/config.py: DONE. typed pydantic loader. load_config() returns Config.
-- src/regime_shift/data.py: DONE. load_prices (yfinance + pickle cache), load_macro (keyless FRED
-  CSV), build_master (log-returns + vix level + causal 1-day-lagged macro; warns and continues if
-  FRED unreachable). Master cols: equity_ret[/bond_ret]/gold_ret, vix, optional macro (1-day lagged).
-- src/regime_shift/features.py: DONE (phase 2). add_momentum (rolling SUM of equity_ret = log
-  momentum, off the return col since master has no price), add_realized_vol (rolling std * sqrt252),
-  build_features -> mom_{5,21,63,126}, vol_{5,21,63}, vix, vix_chg, macro passthrough. All causal
-  (right-aligned rolling). NO standardization here. Momentum/vol on EQUITY only (ponytail comment).
-- src/regime_shift/regime.py: DONE (phase 3). RegimeModel(engine=hmm|jump). fit(X, rank_by, tiebreak)
-  -> stable canonical labels via _canonical_order (sort raw states by within-state mean vol asc,
-  tiebreak return). decode = whole-seq Viterbi (descriptive overlay ONLY). decode_causal = O(n)
-  log-space forward filter off hmmlearn _compute_log_likelihood (leak-proof by construction).
-  transition_matrix (remapped), bic; module fns dwell_times, bic_sweep(K=2..5). jump engine is a
-  LAZY import (raises clear error, HMM has zero dep on it).
-- src/regime_shift/walkforward.py: DONE (phase 4). expanding_walk_forward_splits(n,min_train,
-  test_size,step) -> disjoint expanding (train from 0). run_walk_forward(features,cfg,engine,vol_col)
-  -> per fold: StandardScaler fit on TRAIN only, transform train+test; RegimeModel refit on scaled
-  train ranked by rank_sign*features[rank_col] (default vol_21 ascending); causal decode of
-  [train;test] carrying train history, keep test-day labels only. Returns int Series 'regime' over
-  OOS dates. Execution lag NOT here (backtest owns it). rank_col/rank_sign DEFINE what "ascending
-  risk" means: rank_col="mom_21", rank_sign=-1.0 ranks by trailing return instead of vol. Both are
-  train-only and leak-free. NOTE the kwarg was renamed vol_col -> rank_col.
-- src/regime_shift/optimize.py: DONE (phase 5). ledoit_wolf_cov, shrink_mu (toward grand mean),
-  min_variance_weights, max_sharpe_weights (Schaible: min y'Sy s.t. mu'y=1, y>=0, y<=cap*sum(y);
-  w=y/sum(y); falls back to min-var if max(mu)<=0), defensive_weights (min-var + equity hard-capped),
-  regime_weights dispatch (0->Bull max-Sharpe, n-1->Crisis defensive, mid->Bear min-var). Long-only,
-  budget=1, weight_cap. psd_wrap on shrunk cov. NO turnover penalty (backtest owns churn).
-- src/regime_shift/backtest.py: DONE (phase 6, refactored in 7). run_book(rets,dates,decide,cfg) is
-  the SHARED engine: decide(t) -> (label, target|None) is called at the close of t and its target
-  earns t+1's return; benchmarks.py rides the same engine so costs are identical by construction.
-  asset_cols(returns) is public (benchmarks imports it). run_backtest(regimes,returns,cfg,
-  confirm_days,mu_shrink) is the regime strategy on top. Sequential loop: weights in force today were decided at YESTERDAY's close
-  (regime@close(t) -> weights earn return(t+1)); day 1 is flat by construction. Log returns are
-  converted with expm1 before any portfolio sum (weighted sum of logs != log of portfolio).
-  Between trades the book DRIFTS (w*(1+r) renormalized), so a non-trade day has exactly 0
-  turnover and 0 cost. Trade-day turnover = sum|w_target - w_drifted|, cost = turnover*bps/1e4.
-  Cadence from cfg.rebalance: on_regime_change (hysteresis: new label must persist
-  rebalance_confirm_days) or monthly. conditional=None -> cfg.conditional_moments: estimate
-  mu/Sigma from PAST SAME-LABEL days, falling back to full history below cfg.conditional_min_obs
-  (126). conditional=False is the unconditional ablation. Output cols: regime (Int64, traded label), w_<asset>,
-  turnover, cost, ret_gross, ret_net, equity_gross, equity_net. mu/Sigma are estimated on ALL
-  history up to t (unconditional); the regime picks the OBJECTIVE, not the sample (ponytail note).
-- src/regime_shift/metrics.py: DONE (phase 7). Takes SIMPLE returns (book ret_net/ret_gross).
-  ann_return (geometric), ann_vol, sharpe(rf annual), sortino(downside dev), max_drawdown (negative),
-  calmar, probabilistic_sharpe (Bailey/LdP PSR, per-period SR + skew + kurtosis, benchmark arg is
-  ANNUALIZED), expected_max_sharpe(n_trials, trial_sr_std) (Euler-Mascheroni best-of-N under the
-  null), deflated_sharpe = PSR vs that threshold, optimal_block_length (Politis-White 2004 automatic
-  block: flat-top taper, bandwidth = 2x last significant correlogram lag; ~2.9 days on real US
-  strategy returns), bootstrap_ci (Politis-Romano STATIONARY bootstrap, vectorized index
-  construction, mean_block=None picks it from the data), summary(book or Series) -> ann_return/ann_vol/
-  sharpe/sortino/max_drawdown/calmar/psr (+turnover_ann/cost_drag_ann when given a book).
-- src/regime_shift/benchmarks.py: DONE (phase 7). All benchmarks go through backtest.run_book so
-  they pay identical costs. static_book(returns,dates,cfg,target,rebalance="monthly"|"never"),
-  equal_weight (1/N), sixty_forty (SIXTY_FORTY dict, RENORMALIZED over columns present, so India
-  without a bond ticker becomes 100% equity, not 60% invested). vol_rule_regimes(returns,cfg,
-  window=21,lookback=252,quantile=0.8) -> causal 0/(n-1) labels from trailing vol vs its own
-  trailing quantile: the no-HMM ablation, feed it to run_backtest sliced to the HMM OOS index.
-- src/regime_shift/narrate.py: STUB (phase 8). Optional LLM narration (offline-safe, report-only).
-- src/regime_shift/plots.py: DONE. REGIME_COLORS (ascending risk), regime_overlay(level, regimes)
-  shades each label run up to the NEXT run's start (a one-day flicker would otherwise be a
-  zero-width axvspan and render as a white stripe), equity_drawdown(books dict) 2-panel log growth
-  + drawdown lines, transition_heatmap(P). All take/return an axis; the caller saves. Descriptive
-  only, so a full-sample Viterbi fit is allowed here.
-- tests/: test_smoke (2), test_features (2, leak-proof property), test_regime (4, causal+labels+
-  transition+dwell), test_walkforward (2, splits+OOS sanity), test_optimize (5, constraints+dispatch),
-  test_backtest (3: 1-day lag via flip-the-future-label diff, flat-then-single-entry, zero turnover
-  costs nothing + net=gross-cost), test_metrics (8, closed-form ratios + PSR/DSR properties +
-  bootstrap brackets, block length tracks persistence), test_benchmarks (4: 1/N, 60/40
-  renormalization, monthly trade DATES exact, vol-rule causality via shock-the-future). 33 tests,
-  all green. Tests stay synthetic/seeded/offline on purpose; real data lives in the driver run.
-- notebooks/real_run.py: the real-data driver. Run from the repo root:
-  uv run python notebooks/real_run.py [us|india]. Builds the master from cache, runs the
-  walk-forward, scores all five books, prints the table + bootstrap CI + DSR, writes the three
-  figures to results/. matplotlib Agg, no display needed.
-- notebooks/driver.ipynb: DONE (phase 9). 22 cells, executed clean with 3 embedded figures. Same
-  pipeline as real_run.py plus the narrative: data -> causal features -> leak-proof walk-forward ->
-  THE label-vs-forward-return diagnostic -> BIC sweep -> books -> deflation -> figures ->
-  conclusion. NOTE pre-commit runs nbstripout, so outputs vanish on commit by design; the numbers
-  live in README.md and the figures in results/. Regenerate + execute:
-  uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
-  (ipykernel was added to the dev extra for this).
-- README.md: DONE. Leads with the negative result, both universes' tables, the why-it-loses
-  section, the data-quality landmine, and the deflation rationale.
-- Full build plan: kept outside the repo in the local Claude Code plans directory, so it is not
-  fetchable from a clone. README.md plus this file carry everything needed to resume the work.
+- `config/config.yaml`: all knobs (universes, dates, windows, HMM, costs, seed, rebalance,
+  rebalance_confirm_days, conditional_moments, conditional_min_obs). `india.bond` is deliberately
+  EMPTY, `india.cash: LIQUIDBEES.NS` is the defensive sleeve instead (see data quality below).
+- `src/regime_shift/config.py`: typed pydantic loader, `load_config() -> Config`.
+- `src/regime_shift/data.py`: `load_prices` (yfinance + pickle cache), `load_macro` (keyless FRED
+  CSV), `drop_return_outliers` (vendor-error guard, see landmine), `build_master` (log returns +
+  vix + causal 1-day-lagged macro; warns and continues if FRED unreachable). `_ASSET_ROLES =
+  (equity, bond, cash, gold)`. Master cols: `equity_ret[/bond_ret][/cash_ret]/gold_ret`, `vix`.
+- `src/regime_shift/features.py`: `add_momentum` (rolling SUM of equity_ret = log momentum),
+  `add_realized_vol` (rolling std * sqrt252), `build_features(master, cfg, drawdown=False)` ->
+  `mom_{5,21,63,126}`, `vol_{5,21,63}`, `vix`, `vix_chg`, optional `dd_peak`, macro passthrough.
+  All causal (right-aligned rolling). NO standardization here. Equity only.
+- `src/regime_shift/regime.py`: `RegimeModel(engine="hmm"|"jump")`. `fit(X, rank_by, tiebreak)` ->
+  canonical labels via `_canonical_order` (sorts raw states by within-state mean rank_by ascending;
+  PADS to a full permutation and warns if the fit did not occupy every state). `decode` =
+  whole-sequence Viterbi (DESCRIPTIVE OVERLAYS ONLY). `decode_causal` = O(n) log-space forward
+  filter (HMM) or `predict_online` (jump), leak-proof by construction. `transition_matrix`, `bic`
+  (both HMM-only, raise NotImplementedError for jump); module fns `dwell_times`, `bic_sweep`.
+- `src/regime_shift/walkforward.py`: `expanding_walk_forward_splits(n, min_train, test_size, step)`
+  -> disjoint expanding. `run_walk_forward(features, cfg, engine, rank_col, rank_sign)`: per fold
+  StandardScaler on TRAIN only, model refit on scaled train ranked by `rank_sign*features[rank_col]`
+  (default `vol_21`, ascending), causal decode of [train;test] carrying train history, keep test
+  labels. Returns int Series over OOS dates. `rank_col`/`rank_sign` DEFINE "ascending risk"; both
+  are train-only and leak-free. Execution lag is NOT here (backtest owns it).
+- `src/regime_shift/optimize.py`: `ledoit_wolf_cov`, `shrink_mu`, `min_variance_weights`,
+  `max_sharpe_weights` (Schaible transform, falls back to min-var if no positive shrunk mean),
+  `defensive_weights` (min-var with any column matching "equity" hard-capped), `regime_weights`
+  dispatch (0 -> Bull max-Sharpe, n-1 -> Crisis defensive, middle -> Bear min-var). Long-only,
+  budget 1, weight_cap. `psd_wrap` on the shrunk cov. NO turnover penalty (backtest owns churn).
+- `src/regime_shift/backtest.py`:
+  - `asset_cols(returns)` public (benchmarks imports it).
+  - `run_book(rets, dates, decide, cfg)` is the SHARED engine. `decide(t) -> (label, target|None)`
+    is called at the CLOSE of t and its target earns t+1's return. That is the execution lag, and
+    it lives in one place so every strategy inherits it.
+  - `_drift` divides by the portfolio value multiplier `1 + w@r`, NOT the grown weight sum, so a
+    partially invested book keeps an uninvested residual earning nothing. Identical arithmetic
+    when `sum(w) == 1`, which is why generalizing it left every published number untouched.
+  - `run_backtest(regimes, returns, cfg, confirm_days, mu_shrink, conditional, target_vol)`.
+    Cadence from `cfg.rebalance`: `on_regime_change` (hysteresis: a new label must persist
+    `rebalance_confirm_days`) or `monthly`. `conditional` estimates mu/Sigma from PAST SAME-LABEL
+    days, falling back to full history below `cfg.conditional_min_obs`. `target_vol` scales the
+    whole book toward a constant risk budget, long-only, never levered.
+  - Log returns are converted with `expm1` before any portfolio sum (a weighted sum of logs is
+    not the log of the portfolio). Non-trade days have EXACTLY zero turnover and zero cost.
+  - Output cols: `regime` (Int64), `w_<asset>`, `turnover`, `cost`, `ret_gross`, `ret_net`,
+    `equity_gross`, `equity_net`.
+- `src/regime_shift/metrics.py`: takes SIMPLE returns. `ann_return` (geometric), `ann_vol`,
+  `sharpe(rf)`, `sortino`, `max_drawdown` (negative), `calmar`, `probabilistic_sharpe` (Bailey/
+  Lopez de Prado PSR; benchmark arg is ANNUALIZED), `expected_max_sharpe(n_trials, trial_sr_std)`,
+  `deflated_sharpe`, `optimal_block_length` (Politis-White 2004; ~2.9 days on real US returns),
+  `bootstrap_ci` (Politis-Romano STATIONARY bootstrap, vectorized; `mean_block=None` reads it off
+  the data), `summary(book, col, periods, rf)`. **Pass `rf` whenever a cash-like asset exists** or
+  defensive books get a free Sharpe for holding cash.
+- `src/regime_shift/benchmarks.py`: all routed through `run_book`. `static_book(..., target,
+  rebalance="monthly"|"never")`, `equal_weight`, `sixty_forty` (renormalized over columns present,
+  so India = 100% equity), `vol_rule_regimes(returns, cfg, window, lookback, quantile)` -> causal
+  0/(n-1) labels, the no-HMM ablation. Feed it to `run_backtest` sliced to the HMM OOS index.
+- `src/regime_shift/plots.py`: `REGIME_COLORS`, `regime_overlay` (shades each run up to the NEXT
+  run's start, else a one-day flicker is a zero-width axvspan and renders as a white stripe),
+  `equity_drawdown(books)`, `transition_heatmap(P)`. All take/return an axis; caller saves.
+- `src/regime_shift/narrate.py`: STUB. Optional LLM narration, report-only. Never implemented.
+- `tests/` (39 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+  `test_features` 2, `test_regime` 5 (causal decode, canonical labels, transition, dwell, jump
+  engine via importorskip), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 6 (1-day lag
+  by flipping a future label, flat-then-entry, conditional moments + fallback, target_vol,
+  zero-turnover-is-free), `test_metrics` 9, `test_benchmarks` 5 (incl. cash sleeve), `test_data` 3.
+- `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [us|india]`.
+  Builds the master from cache, runs the walk-forward, scores 8 books, prints the
+  forward-return-by-label tables, the scorecard, and the deflation table, writes 3 figures to
+  `results/`. matplotlib Agg, no display needed.
+- `notebooks/driver.ipynb`: 24 cells, executes clean with 3 embedded figures. Same pipeline plus
+  the narrative. Regenerate: `uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb
+  --kernel python3`.
+- `README.md`: leads with the negative result, both universes, why-it-loses, the failed rescues,
+  data quality, deflation rationale, attribution terms.
+- Build plan: kept outside the repo in the local Claude Code plans dir, deliberately not
+  fetchable from a clone. README + this file carry everything needed to resume.
 
 ## Current state
-- Phases 0-9 DONE plus all three follow-up extensions. Only narrate.py remains a stub (optional).
-- PUBLIC at https://github.com/DogInfantry/Signals-Before-Storms, Apache-2.0, main pushed.
-- 38 tests green, ruff clean. Env locked. jumpmodels lives in a narrow `jump` extra:
-  uv sync --extra dev --extra jump. It installs cleanly and does NOT downgrade numpy 2.5.1 /
-  pandas 3.0.5 (verified, and the US table was re-run identical afterwards).
-- NEW API since the first write-up: run_backtest(target_vol=), build_features(drawdown=),
-  metrics.summary(rf=), data._ASSET_ROLES now includes "cash", walkforward rank_col/rank_sign.
-- backtest._drift now divides by the portfolio value multiplier (1 + w@r) instead of the grown
-  weight sum, so a partially invested book keeps an uninvested residual earning nothing. Identical
-  arithmetic when sum(w)==1, which is why every published number survived the change untouched.
-- Uncommitted working tree:
-  - M CLAUDE.md, README.md, pyproject.toml, uv.lock, config/config.yaml,
-    src/regime_shift/{config,data,features,optimize,regime,walkforward,backtest,metrics,
-    benchmarks,plots}.py
-  - ?? tests/test_{features,optimize,regime,walkforward,backtest,metrics,benchmarks,data}.py,
-    notebooks/{real_run.py,driver.ipynb}
-- REAL DATA IS PULLED AND CACHED (data/cache/, yfinance ok, FRED blocked on this network so the
-  master has NO macro cols). US master 2263x4 (equity/bond/gold/vix) 2015-01-02..2023-12-29,
-  India 2193x3 (no bond).
-- FIRST REAL RESULT (US, walk-forward OOS 2016-07-05..2023-12-29, n=1886, net of 7.5bps):
-    hmm_conditional    sharpe 0.542  ann_ret 0.049  maxDD -0.287  turnover 4.19x
-    hmm_unconditional  sharpe 0.535  ann_ret 0.048  maxDD -0.274  turnover 2.74x
-    vol_rule_ablation  sharpe 0.958  ann_ret 0.098  maxDD -0.219  turnover 3.61x
-    60_40              sharpe 0.690  ann_ret 0.075  maxDD -0.276  turnover 0.41x
-    equal_weight       sharpe 0.650  ann_ret 0.059  maxDD -0.230  turnover 0.42x
-  THE HMM STRATEGY LOSES TO EVERYTHING, including its own no-HMM ablation. Sharpe 95% CI
-  (-0.211, 1.263), DSR 0.405 at 10 trials, auto block length 2.9 days. Do not paper over this.
-  Root cause is now established: see THE CENTRAL FINDING below. Labels themselves are sane (dwell
-  21-27d, transition diagonal 0.96-0.98, overlay nails Feb-2018 / Q4-2018 / COVID / 2022) and the
-  book does protect the fast crash (barely dented Mar-2020 while 60/40 took -14%) but fails the
-  slow 2022 bear where bonds fell with equities (-0.29, worse than 60/40). Conditional moments buy
-  +0.007 Sharpe for +53% turnover: not worth it on this evidence.
-- rank_return variant (rank_col=mom_21, rank_sign=-1): sharpe 0.620, ann_ret 0.057, maxDD -0.285,
-  turnover 3.77x. Better than rank_vol, still under 60/40.
-- Figures written to results/ (gitignored): {us,india}_regime_overlay.png,
-  {us,india}_equity_drawdown.png, {us,india}_transition_heatmap.png.
-- hmmlearn emits ~500 NumPy-2.5 DeprecationWarnings during fits (internal a_sum.shape=shape); noise,
-  not our code, tests still pass.
+- **Everything is committed and pushed. Working tree clean. CI green on main.**
+- 39 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+  the second regime engine.
+- Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**,
+  so the master currently has NO macro columns and degrades gracefully.
+  US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
+- Figures in `results/` (gitignored): `{us,india}_{regime_overlay,equity_drawdown,transition_heatmap}.png`.
+- Phases 0-9 done plus three follow-up extensions. Only `narrate.py` remains a stub (optional).
 
-## DATA-QUALITY LANDMINE (fixed, but read this before trusting any number)
-GOLDBEES.NS on Yahoo prints a 100x round trip: log return -4.6065 on 2019-12-19 and +4.6052 on
-2019-12-23. Two bad prints in 2193 rows inflated gold's return std from 0.011 to 0.139 and
-poisoned every Indian covariance, regime fit and Sharpe. Before the fix India "ran" at 44.5% vol
-with sharpe 0.446; after it, 10.2% vol and sharpe 1.215. data.drop_return_outliers now NaNs any
-daily |log return| > 0.5 (build_master arg max_abs_return, default 0.5) and warns loudly;
-tests/test_data.py pins it, including that a -13% crash day is NOT dropped. US was unaffected
-(re-run confirmed identical), so all US numbers below stand.
+### Headline numbers (US, OOS 2016-07-05..2023-12-29, n=1886, net of 7.5bps, DSR at 7 trials)
+```
+vol_rule_ablation  sharpe 0.958  ann 0.098  maxDD -0.219  turn 3.61x  DSR 0.863  CI ( 0.238, 1.652)
+60_40              sharpe 0.690  ann 0.075  maxDD -0.276  turn 0.41x  DSR 0.643  CI (-0.023, 1.422)
+jump_regime        sharpe 0.682  ann 0.066  maxDD -0.251  turn 1.46x  DSR 0.636  CI (-0.092, 1.399)
+equal_weight       sharpe 0.650  ann 0.059  maxDD -0.230  turn 0.42x  DSR 0.602  CI (-0.086, 1.382)
+hmm_drawdown_feat  sharpe 0.590  ann 0.054  maxDD -0.280  turn 3.88x  DSR 0.538
+hmm_vol_targeted   sharpe 0.562  ann 0.050  maxDD -0.273  turn 4.10x  DSR 0.508
+hmm_conditional    sharpe 0.542  ann 0.049  maxDD -0.287  turn 4.19x  DSR 0.486  CI (-0.211, 1.263)
+hmm_unconditional  sharpe 0.535  ann 0.048  maxDD -0.274  turn 2.74x  DSR 0.478
+```
+### India (primary, OOS 2016-07-22..2023-12-29, n=1814, Sharpe vs rf=3.79% that cash actually paid)
+```
+vol_rule 0.848 | jump 0.839 (turnover 0.25x) | equal_weight 0.815 | drawdown 0.759 |
+hmm_unconditional 0.755 | hmm_conditional 0.744 = hmm_vol_targeted 0.744 | 60_40 (=100% eq) 0.594
+```
+SAME ORDERING AS US. Only the vol rule has a bootstrap CI excluding zero.
 
 ## THE CENTRAL FINDING (diagnosis complete, do not re-litigate without new evidence)
-HMM states here are VOLATILITY states, and volatility states carry no directional information on
-US 2016-2023. Evidence, all out-of-sample at the traded 1-day lag:
+HMM states here are VOLATILITY states, and volatility states carry no directional information.
+Evidence, all out-of-sample at the traded 1-day lag:
 - Next-day equity by vol-ranked label: L0 +10.9% (vol 8.7, VIX 13), L1 +14.7% (15.6, 19),
-  L2 +16.1% (32.2, 28). Vol ordering is perfectly monotone; RETURN ordering is monotone the WRONG
-  WAY. De-risking on the crisis label sells the best days, because 2020 and 2022 rebounds are as
-  volatile as the crashes.
-- The modal label is Bear (841/1886 days) with equity Sharpe 0.96, a perfectly good regime, and
-  the stance map routes it to min-variance. That, not Crisis, is where most of the damage is.
-- Re-ranking states by trailing return (rank_col="mom_21", rank_sign=-1) barely moves anything:
-  sharpe 0.542 -> 0.620, still under 60/40's 0.690, and label 2 is IDENTICAL (same 379 days, same
-  +16.1%). Reordering cannot add information the state space does not contain. The state space is
-  the problem, not the label map.
-- BIC falls monotonically (K=2 39821, 3 34354, 4 31349, 5 29458): the HMM is fitting a fat-tailed
-  continuum, not finding discrete states. No BIC support for K=3.
+  L2 +16.1% (32.2, 28). Vol ordering perfectly monotone; RETURN ordering monotone the WRONG WAY.
+  De-risking on the crisis label sells the best days: 2020 and 2022 rebounds are as violent as the
+  crashes that preceded them.
+- The modal label is Bear (841/1886 days) with equity Sharpe 0.96, a perfectly good regime, routed
+  by the stance map to min-variance. That, not Crisis, is where most of the damage is.
+- BIC falls monotonically (K=2 39821, 3 34354, 4 31349, 5 29458): a fat-tailed continuum being
+  fitted, not discrete states. No BIC support for K=3.
 - The 2-line vol-threshold ablation DOES separate direction: L0 +19.7% (Sharpe 1.39) vs L2 -9.6%
   (Sharpe -0.16), only 48.9% label agreement with the HMM. It wins on every metric.
-THREE RESCUE ATTEMPTS, ALL FAILED, ALL IN THE SAME DIRECTION (2026-07-24):
-- JUMP MODEL (jumpmodels 0.1.1, `uv sync --extra jump`): works, and does what it advertises. Dwell
-  27d -> 194d, turnover 4.19x -> 1.46x, sharpe 0.542 -> 0.682. Label agreement with HMM only 0.586,
-  so it is a genuinely different partition. And its crisis label still has the HIGHEST forward
-  return (+20.0% on 106 days, vol 46.6%, VIX 31.8). Two unrelated estimators, low agreement, same
-  broken ordering => the fault is the STATE SPACE, not the HMM. This is the flagship result.
-- VOL TARGETING (run_backtest target_vol=0.10): sharpe 0.542 -> 0.562 US, bit-identical on India.
-  It barely binds, because min-var already pins the book at 9.6% (US) / 4.1% (India) vol. The
-  strategy is not taking too much risk, it is taking too little and forfeiting return.
-- DRAWDOWN FEATURE (build_features(drawdown=True) -> dd_peak): PRE-REGISTERED criterion was
-  "crisis label forward return must turn negative". It went +16.1% -> +17.6%. FAILED on its own
-  terms. Sharpe drifted 0.542 -> 0.590; explicitly NOT counted as a win. Do not re-litigate this
-  by pointing at the Sharpe.
-Deflated Sharpe now at 7 honest trials (was 4): vol_rule 0.863, 60_40 0.643, jump 0.636, equal_wt
-0.602, drawdown 0.538, vol_targeted 0.508, rank_vol 0.486, unconditional 0.478. Only the vol rule
-has a bootstrap CI excluding zero: (0.238, 1.652). Adding trials LOWERED every DSR, as intended.
-INDIA (primary universe, WITH the cash sleeve, OOS 2016-07-22..2023-12-29 n=1814, Sharpe measured
-against the rf=3.79% that LIQUIDBEES actually paid): vol_rule 0.848 / jump 0.839 (turnover only
-0.25x!) / equal_weight 0.815 / drawdown 0.759 / hmm_unconditional 0.755 / hmm_conditional 0.744 =
-hmm_vol_targeted 0.744 / 60-40 (=100% equity) 0.594. SAME ORDERING AS US.
-IMPORTANT: an earlier CLAUDE.md and README reported India as an HMM WIN (1.215 vs 1.185 for 1/N).
-That was WRONG for two compounding reasons, both now fixed: no cash sleeve existed, and Sharpe was
-scored against rf=0 so any book parking in a near-riskless asset got a free boost. metrics.summary
-now takes rf and real_run.py derives it from cash_ret. Do not resurrect the old India numbers.
+
+**FOUR RESCUE ATTEMPTS, ALL FAILED, ALL THE SAME WAY:**
+1. **Re-rank by return** (`rank_col="mom_21", rank_sign=-1`): 0.542 -> 0.620, still under 60/40,
+   and label 2 came out IDENTICAL (same 379 days, same +16.1%). Reordering cannot add information
+   the state space does not contain.
+2. **Jump Model** (the flagship): does exactly what it advertises. Dwell 27d -> 194d, turnover
+   4.19x -> 1.46x, Sharpe -> 0.682. Agrees with the HMM only 58.6% of the time, so it is a
+   genuinely different partition, and its crisis label STILL has the highest forward return
+   (+20.0%, 106 days, vol 46.6%). Two unrelated estimators, low agreement, same broken ordering
+   => the fault is the STATE SPACE, not the HMM.
+3. **Volatility targeting** (`target_vol=0.10`): 0.542 -> 0.562 US, bit-identical on India. It
+   barely binds, because min-var already pins the book at 9.6% (US) / 4.1% (India) vol. The
+   strategy is not taking too much risk, it is taking too little and forfeiting return.
+4. **Drawdown feature** (`build_features(drawdown=True)`): PRE-REGISTERED criterion was "crisis
+   label forward return must turn negative". It went +16.1% -> +17.6%. FAILED on its own terms.
+   Sharpe drifted to 0.590; explicitly NOT counted as a win. Do not re-litigate via the Sharpe.
+
 This IS the report's flagship result. A rigorous negative with a diagnosis beats a tuned positive.
-Config default deliberately left at rank_col="vol_21"; do NOT quietly switch it to the variant
-that scored 0.08 higher, that is exactly the selection bias the DSR is there to punish.
+Config default deliberately stays `rank_col="vol_21"`; do NOT quietly switch to the variant that
+scored 0.08 higher, that is precisely the selection bias the DSR exists to punish.
+
+## DATA-QUALITY LANDMINES (both fixed, read before trusting any number)
+1. **GOLDBEES.NS 100x round trip.** Log return -4.6065 on 2019-12-19 and +4.6052 on 2019-12-23.
+   Two bad prints in 2193 rows inflated gold's return std from 0.011 to 0.139 and poisoned every
+   Indian covariance, regime fit and Sharpe (India "ran" at 44.5% vol). `drop_return_outliers` now
+   NaNs any daily |log return| > 0.5 and warns loudly; `tests/test_data.py` pins it, including
+   that a -13% crash day is NOT dropped. US was unaffected (verified by re-run).
+2. **No usable Indian duration ETF on Yahoo for 2015-2023.** Measured before rejecting:
+   SETF10GILT.NS 39.0% ann vol / 21.7% zero-return days, LTGILTBEES.NS 15.7% / 9.1%, and both
+   start mid-sample (2016-06, 2018-05) which `build_master`'s `dropna()` would propagate into a
+   ~18% shorter OOS window. That is thin-trading noise around NAV, and `drop_return_outliers`
+   would NOT catch it because no single print is absurd. LIQUIDBEES.NS (1.1% vol, full history) is
+   used instead and is called **cash**, not a bond.
+3. **rf matters once cash exists.** `metrics.summary(rf=)` and `real_run.py` derives rf from
+   `cash_ret`. An earlier README reported India as an HMM WIN (1.215 vs 1.185); that was an
+   artifact of having no cash sleeve AND scoring against rf=0. Do not resurrect those numbers.
 
 ## Active task
-Nothing blocking. Repo is public at https://github.com/DogInfantry/Signals-Before-Storms, all loose
-ends closed, everything committed and pushed. If work resumes, the honest options are:
-1. A DIRECTIONAL state variable, which is the only thing the evidence actually points to: credit
-   spreads (FRED BAA10Y, already in the config macro list but FRED is blocked on this network),
-   market breadth, earnings revisions, positioning. Realized vol and VIX are symmetric in sign and
-   cannot supply direction, which is the whole finding. NOTE the DSR budget is nearly spent: at 7
-   trials any new variant needs a materially larger raw Sharpe just to hold its ground.
-2. narrate.py is still a stub, explicitly optional, and the lowest research value of anything left.
-3. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears; the
-   gilt ETFs there are noise, not risk (see the data-quality section).
+**Nothing in flight. Clean stopping point.** Repo public, CI green, tree clean, all loose ends
+closed. See Next Steps for options if work resumes.
 
 ## Next steps
-1. Repo name, then commit phases 2-9 (ACTIVE, blocked on the user).
-2. Resolve India bond proxy (config india.bond empty); pick a Yahoo gilt/bond ETF or duration proxy.
-   Now semi-blocking: backtest allocates over whatever *_ret columns exist, so India currently
-   runs equity+gold only (defensive_weights has no bond sleeve to hide in). US is the fuller demo.
-3. Phase 8 narration (optional); Phase 9 driver notebook + README results.
-4. Optional: install jumpmodels (uv add jumpmodels) to light up the flagship HMM-vs-JM comparison.
-5. DECIDE REPO NAME, then commit phases 2-7 (user hold on commits until then). Push only on go-ahead.
+1. **Nothing is required.** The project is complete and internally consistent. Stopping here is a
+   legitimate choice; the deliverable is a rigorous negative result with a diagnosis.
+2. If more modelling is wanted, the ONLY lead the evidence supports is a **directional state
+   variable**: credit spreads (FRED `BAA10Y`, already in the config macro list, but FRED is
+   blocked on this network so it needs a different network or a vendor), market breadth, earnings
+   revisions, or positioning. Realized vol and VIX are symmetric in sign and provably cannot
+   supply direction. NOTE the DSR budget is nearly spent: at 7 trials any new variant needs a
+   materially larger raw Sharpe just to hold its ground.
+3. `narrate.py` is still a stub, explicitly optional, lowest research value of anything left. It
+   demos well if the report needs a flourish.
+4. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears.
+5. Nice-to-have polish: `uv run pre-commit install` (configured but NOT installed, so nbstripout
+   never runs and the committed notebook keeps its outputs, which is arguably what you want for a
+   portfolio repo).
 
 ## How to run
-- uv sync --extra dev
-- uv run pytest -q ; uv run ruff check .
-- Data smoke: uv run python -m regime_shift.data
-- Full real run + figures: uv run python notebooks/real_run.py us
+```
+uv sync --extra jump          # dev group installs by default
+uv run pytest -q              # 39 tests
+uv run ruff check .
+uv run python -m regime_shift.data                 # data smoke (network)
+uv run python notebooks/real_run.py us             # full run + figures
+uv run python notebooks/real_run.py india
+uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
+```
 
 ## Gotchas
-- DEV DEPS LIVE IN ONE PLACE: [dependency-groups] dev. There used to ALSO be a `dev` extra under
-  [project.optional-dependencies], and `uv sync --dev` installs the GROUP, so CI got ipykernel and
-  no ruff/pytest and failed on every push with "Failed to spawn: ruff". Do not re-add a dev extra.
-  `uv sync` alone now gives a working dev env; `uv sync --extra jump` adds the second engine.
-- jump_penalty is SCALE-DEPENDENT and the RegimeModel default (50.0) is tuned for the 9 real
-  standardized features. On a small/low-dim feature set it collapses the fit to ONE state. That
-  used to crash _to_canonical with an opaque broadcast error; _canonical_order now pads the order
-  to a full permutation and warns instead. An HMM can leave a state unvisited the same way.
-- GateGuard hook (ECC gateguard-fact-force) DENIES the FIRST Write/Edit of a file per session,
-  including edits of existing files (not only new-file creation as previously noted). Retry after
-  stating facts (importers via Grep, public API, data schema, verbatim instruction). ECC_GATEGUARD=off
-  or ECC_DISABLED_HOOKS=pre:edit-write:gateguard-fact-force disables it.
-- regime causal decode uses hmmlearn's PRIVATE _compute_log_likelihood (fine on pinned 0.3.3).
-  decode() (whole-seq Viterbi) is NOT causal; NEVER use it for the walk-forward test decode.
-- max_sharpe needs psd_wrap(cov) (LedoitWolf cov can have tiny negative eigenvalues); Sharpe fallback
-  to min-var when no positive shrunk mean.
-- jumpmodels NOT installed; engine='jump' raises a clear ImportError. HMM is the graded baseline.
-- git add -A once swept in .claude/ plugin sqlite files; .claude/ is now gitignored. Watch stray dirs.
-- FRED (fred.stlouisfed.org) may be blocked on some networks; macro degrades gracefully.
-- yfinance 1.x returns MultiIndex columns (field, ticker); data.py handles single vs multi ticker.
-- India bond ticker empty means India master is equity+gold+vix only until resolved.
+- **DEV DEPS LIVE IN ONE PLACE: `[dependency-groups] dev`.** There used to ALSO be a `dev` extra
+  under `[project.optional-dependencies]`, and `uv sync --dev` installs the GROUP, so CI got
+  ipykernel and no ruff/pytest and failed every push (unable to spawn ruff). Do not re-add a dev
+  extra. CI runs `uv sync --extra jump`.
+- **`jump_penalty` is SCALE-DEPENDENT.** The RegimeModel default 50.0 suits the 9 real
+  standardized features; on a small/low-dim set it collapses the fit to ONE state. That used to
+  crash `_to_canonical` with an opaque broadcast error. `_canonical_order` now pads to a full
+  permutation and warns. An HMM can leave a state unvisited the same way.
+- **GateGuard hook** (`ECC gateguard-fact-force`) DENIES the FIRST Write/Edit of every file per
+  session, including edits of existing files. Retry after stating facts (importers via Grep,
+  public API, data schema, verbatim user instruction). Disable with `ECC_GATEGUARD=off` or
+  `ECC_DISABLED_HOOKS=pre:edit-write:gateguard-fact-force`.
+- **PowerShell here-strings eat double quotes** when passed to native commands. A `git commit -m`
+  message containing `"` silently became pathspecs and the commit did NOT happen. Always verify
+  with `git log` after committing. Same class of bug mangled a `python -c` script into a syntax
+  error. Prefer single quotes inside; verify, do not assume.
+- `regime.decode_causal` uses hmmlearn's PRIVATE `_compute_log_likelihood` (fine on pinned 0.3.3).
+  `decode()` (whole-sequence Viterbi) is NOT causal; NEVER use it for the walk-forward test decode.
+- `max_sharpe_weights` needs `psd_wrap(cov)` (LedoitWolf cov can carry tiny negative eigenvalues).
+- hmmlearn emits ~500 NumPy-2.5 DeprecationWarnings per run (internal `a_sum.shape = shape`);
+  noise, not our code.
+- FRED (fred.stlouisfed.org) is blocked on this network; macro degrades gracefully with a warning.
+- yfinance 1.x returns MultiIndex columns (field, ticker); `data.py` handles single vs multi.
+- `git add -A` once swept in `.claude/` plugin sqlite files; `.claude/` is gitignored now. Watch
+  for stray dirs before any commit.
