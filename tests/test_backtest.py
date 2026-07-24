@@ -95,6 +95,21 @@ def test_conditional_falls_back_to_full_history_when_the_regime_is_thin():
     )
 
 
+def test_target_vol_de_risks_without_ever_levering():
+    cfg = load_config()
+    rets = _log_returns()
+    reg = _regimes(rets.index)
+
+    full = run_backtest(reg, rets, cfg)
+    scaled = run_backtest(reg, rets, cfg, target_vol=0.03)  # far below the book's natural vol
+    w = [c for c in scaled.columns if c.startswith("w_")]
+
+    invested = scaled[w].sum(axis=1)
+    assert invested.max() <= 1.0 + 1e-9  # long-only, never levered
+    assert invested.iloc[1] < 0.9  # and genuinely scaled down, not merely reweighted
+    assert scaled["ret_net"].std() < full["ret_net"].std()  # less risk taken, as asked
+
+
 def test_zero_turnover_is_free_and_costs_only_drag():
     cfg = load_config()
     rets = _log_returns()

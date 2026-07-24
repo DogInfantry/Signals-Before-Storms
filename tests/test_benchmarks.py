@@ -12,6 +12,7 @@ import pandas as pd
 
 from regime_shift.benchmarks import equal_weight, sixty_forty, static_book, vol_rule_regimes
 from regime_shift.config import load_config
+from regime_shift.optimize import regime_weights
 
 _COLS = ["equity_ret", "bond_ret", "gold_ret"]
 _N = 500
@@ -49,6 +50,22 @@ def test_sixty_forty_renormalizes_when_the_bond_sleeve_is_missing():
     india = rets[["equity_ret", "gold_ret"]]  # no bond ticker resolved yet
     row = sixty_forty(india, india.index, cfg).iloc[1]
     assert abs(row["w_equity"] - 1.0) < 1e-12  # renormalized, not 60% invested and 40% idle
+
+
+def test_cash_sleeve_is_allocated_and_absorbs_the_crisis_stance():
+    """India has no usable bond ETF, so cash is the defensive sleeve. It has to be a real asset
+    to the optimizer, not a column that gets quietly ignored."""
+    cfg = load_config()
+    rng = np.random.default_rng(1)
+    rets = _log_returns()
+    rets["cash_ret"] = rng.normal(0.00015, 0.0002, _N)  # overnight fund: yield, almost no risk
+
+    row = equal_weight(rets, rets.index, cfg).iloc[1]
+    assert abs(row["w_cash"] - 0.25) < 1e-12  # 1/N counts cash as one of the N
+
+    crisis = regime_weights(cfg.hmm.n_states - 1, rets, cfg)
+    assert crisis["cash_ret"] > 0.5  # the defensive stance parks in the calmest asset
+    assert crisis["equity_ret"] <= 0.1 + 1e-9  # and equity stays hard-capped
 
 
 def test_monthly_rebalance_pays_only_at_month_turns():

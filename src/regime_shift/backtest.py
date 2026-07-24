@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from regime_shift.optimize import regime_weights
+from regime_shift.optimize import ledoit_wolf_cov, regime_weights
 
 
 def asset_cols(returns: pd.DataFrame) -> list[str]:
@@ -30,10 +30,15 @@ def asset_cols(returns: pd.DataFrame) -> list[str]:
 
 
 def _drift(w: np.ndarray, r: np.ndarray) -> np.ndarray:
-    """Weights carried out of a day, after its returns but before any trade. Flat stays flat."""
-    grown = w * (1.0 + r)
-    total = grown.sum()
-    return grown / total if total > 0 else grown
+    """Weights carried out of a day, after its returns but before any trade. Flat stays flat.
+
+    Divides by the portfolio value multiplier 1 + w@r rather than by the grown weights, so a book
+    that is only partly invested keeps its uninvested residual earning nothing instead of being
+    silently renormalized back to fully invested. When sum(w) == 1 the two are identical, since
+    1 + w@r == sum(w * (1 + r)), so this changes nothing for a fully invested strategy.
+    """
+    value = 1.0 + float(w @ r)
+    return w * (1.0 + r) / value if value > 0 else w * (1.0 + r)
 
 
 def run_book(rets: pd.DataFrame, dates, decide, cfg) -> pd.DataFrame:
@@ -94,6 +99,7 @@ def run_backtest(
     confirm_days: int | None = None,
     mu_shrink: float = 0.5,
     conditional: bool | None = None,
+    target_vol: float | None = None,
 ) -> pd.DataFrame:
     """Trade the regime path and return the per-day book.
 
@@ -104,6 +110,11 @@ def run_backtest(
     Rebalance cadence is cfg.rebalance: "on_regime_change" (with a confirm_days hysteresis, so a
     one-day flicker in the filter does not cost a round trip) or "monthly". Turnover on a trade
     day is sum|w_target - w_drifted|, charged at cfg.costs_bps.
+
+    target_vol (annualized, e.g. 0.10) turns the strategy from a directional bet into a constant
+    risk budget: the regime still picks the objective, but the whole book is scaled down whenever
+    its ex-ante volatility exceeds the target. This is the honest response to states that predict
+    variance rather than direction. Long-only and never levered, so it can only de-risk.
 
     conditional (default cfg.conditional_moments) estimates mu/Sigma from the PAST DAYS THAT
     CARRIED THE SAME LABEL rather than from all history, so a crisis portfolio is built on crisis
@@ -150,6 +161,15 @@ def run_backtest(
                 cand, run_len = None, 0
         if not trade:
             return traded, None
-        return traded, regime_weights(traded, sample(t, traded), cfg, mu_shrink).to_numpy()
+        window = sample(t, traded)
+        target = regime_weights(traded, window, cfg, mu_shrink).to_numpy()
+        if target_vol:
+            # Scale the whole book toward a constant ex-ante risk budget. Long-only and never
+            # levered, so this only ever de-risks; the uninvested residual sits in cash earning
+            # nothing, which _drift now accounts for correctly.
+            sigma = float(np.sqrt(target @ ledoit_wolf_cov(window) @ target) * np.sqrt(252))
+            if sigma > 0:
+                target = target * min(1.0, target_vol / sigma)
+        return traded, target
 
     return run_book(rets, regimes.index, decide, cfg)

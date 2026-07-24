@@ -4,7 +4,8 @@ seed: 42
 universes:
   india:
     equity: "^NSEI"          # NIFTY 50
-    bond: ""                 # resolve in phase 1: a gilt / long-duration proxy on Yahoo
+    bond: ""                 # no usable duration ETF on Yahoo for 2015-2023, see README
+    cash: "LIQUIDBEES.NS"    # overnight/liquid fund: the defensive sleeve, honestly not a bond
     gold: "GOLDBEES.NS"      # gold ETF in INR
     vix: "^INDIAVIX"         # confirm history depth on first pull
   us:

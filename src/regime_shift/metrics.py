@@ -182,18 +182,25 @@ def bootstrap_ci(
     return float(np.quantile(vals, alpha / 2)), float(np.quantile(vals, 1.0 - alpha / 2))
 
 
-def summary(book, col: str = "ret_net", periods: int = 252) -> pd.Series:
-    """One-line scorecard. Accepts a backtest book (reads `col`) or a bare return Series."""
+def summary(book, col: str = "ret_net", periods: int = 252, rf: float = 0.0) -> pd.Series:
+    """One-line scorecard. Accepts a backtest book (reads `col`) or a bare return Series.
+
+    Pass rf (an annual rate) whenever the universe contains a cash-like asset. A book that parks
+    in an instrument yielding rf at near-zero volatility earns a large Sharpe purely from the
+    risk-free rate, and scoring it against rf=0 flatters it for holding cash.
+    """
     is_book = isinstance(book, pd.DataFrame)
     r = book[col] if is_book else book
     out = {
         "ann_return": ann_return(r, periods),
         "ann_vol": ann_vol(r, periods),
-        "sharpe": sharpe(r, periods),
-        "sortino": sortino(r, periods),
+        "sharpe": sharpe(r, periods, rf=rf),
+        "sortino": sortino(r, periods, target=rf),
         "max_drawdown": max_drawdown(r),
         "calmar": calmar(r, periods),
-        "psr": probabilistic_sharpe(r, 0.0, periods),
+        # PSR is measured on the same excess series the Sharpe above uses, otherwise the two
+        # numbers would describe different quantities
+        "psr": probabilistic_sharpe(np.asarray(r, dtype=float) - rf / periods, 0.0, periods),
     }
     if is_book and "turnover" in book.columns:
         out["turnover_ann"] = float(book["turnover"].sum() * periods / len(book))

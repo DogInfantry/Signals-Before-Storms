@@ -17,7 +17,7 @@ import requests
 import yfinance as yf
 
 CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
-_ASSET_ROLES = ("equity", "bond", "gold")
+_ASSET_ROLES = ("equity", "bond", "cash", "gold")
 
 
 def _cache_path(key: str) -> Path:
