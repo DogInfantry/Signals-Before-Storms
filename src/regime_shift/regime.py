@@ -11,6 +11,7 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
+import pandas as pd
 from hmmlearn.hmm import GaussianHMM
 from scipy.special import logsumexp
 
@@ -190,19 +191,39 @@ class RegimeModel:
         return float(self._model.bic(np.asarray(X, dtype=float)))
 
 
-def dwell_times(labels: np.ndarray) -> dict[int, float]:
+def label_episodes(labels) -> pd.DataFrame:
+    """One row per contiguous run of a label: `label`, `start`, `end`, `days`.
+
+    THE unit of evidence for any claim about a regime. A label spanning 94 days is not 94
+    observations if those days are two episodes, and reading the day count as a sample size is
+    how a single event gets mistaken for a repeatable effect. Every regime-level statistic in
+    this project is built on top of this function so that the episode count travels with it.
+
+    Accepts a Series (start/end are its index values, so real dates survive) or a bare array
+    (start/end are integer positions).
+    """
+    s = pd.Series(labels).dropna()
+    if s.empty:
+        return pd.DataFrame(columns=["label", "start", "end", "days"])
+    v = s.to_numpy()
+    starts = np.concatenate(([0], np.flatnonzero(v[1:] != v[:-1]) + 1))
+    ends = np.concatenate((starts[1:] - 1, [len(v) - 1]))
+    return pd.DataFrame(
+        {
+            "label": v[starts].astype(int),
+            "start": s.index[starts],
+            "end": s.index[ends],
+            "days": (ends - starts + 1).astype(int),
+        }
+    )
+
+
+def dwell_times(labels) -> dict[int, float]:
     """Mean run length (persistence) per label in a decoded sequence."""
-    labels = np.asarray(labels)
-    if labels.size == 0:
+    eps = label_episodes(labels)
+    if eps.empty:
         return {}
-    change = np.flatnonzero(np.diff(labels)) + 1
-    run_starts = np.concatenate(([0], change))
-    run_lengths = np.diff(np.concatenate((run_starts, [labels.size])))
-    run_labels = labels[run_starts]
-    out: dict[int, list[int]] = {}
-    for lab, length in zip(run_labels, run_lengths, strict=True):
-        out.setdefault(int(lab), []).append(int(length))
-    return {lab: float(np.mean(lengths)) for lab, lengths in out.items()}
+    return {int(k): float(v) for k, v in eps.groupby("label")["days"].mean().items()}
 
 
 def bic_sweep(X: np.ndarray, n_states_range=(2, 3, 4, 5), **hmm_kwargs) -> dict[int, float]:

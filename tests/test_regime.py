@@ -11,9 +11,10 @@ Synthetic two-regime data (calm vs turbulent), seeded, so the test is offline an
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
-from regime_shift.regime import RegimeModel, dwell_times
+from regime_shift.regime import RegimeModel, dwell_times, label_episodes
 
 
 def _two_regime_data(seed: int = 0):
@@ -67,6 +68,33 @@ def test_transition_matrix_is_stochastic():
     P = model.transition_matrix()
     assert P.shape == (2, 2)
     np.testing.assert_allclose(P.sum(axis=1), 1.0, atol=1e-9)
+
+
+def test_label_episodes_counts_runs_not_rows():
+    """Episodes, not days, are the sample size behind any regime claim.
+
+    Single-day runs at the first and last position are here on purpose: that is where off-by-one
+    errors in run detection hide, and a miscounted episode silently inflates the apparent
+    evidence for a state.
+    """
+    labels = pd.Series(
+        [2, 0, 0, 0, 1, 1, 2, 2, 2, 2, 0],
+        index=pd.bdate_range("2020-01-01", periods=11),
+    )
+    eps = label_episodes(labels)
+
+    assert list(eps["label"]) == [2, 0, 1, 2, 0]
+    assert list(eps["days"]) == [1, 3, 2, 4, 1]
+    assert eps["days"].sum() == len(labels)
+    assert eps.iloc[0]["start"] == eps.iloc[0]["end"] == labels.index[0]  # leading single day
+    assert eps.iloc[-1]["start"] == eps.iloc[-1]["end"] == labels.index[-1]  # trailing single day
+
+    # label 2 spans 5 days but only 2 episodes, which is the whole point
+    lab2 = eps[eps["label"] == 2]
+    assert len(lab2) == 2
+    assert lab2["days"].sum() == 5
+
+    assert label_episodes(pd.Series([], dtype=float)).empty
 
 
 def test_dwell_times_run_lengths():

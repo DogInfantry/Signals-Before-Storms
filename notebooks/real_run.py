@@ -31,6 +31,7 @@ from regime_shift.features import build_features
 from regime_shift.metrics import (
     bootstrap_ci,
     deflated_sharpe,
+    episode_profile,
     label_profile,
     optimal_block_length,
     sharpe,
@@ -38,6 +39,7 @@ from regime_shift.metrics import (
 )
 from regime_shift.plots import (
     bic_curve,
+    episode_bars,
     equity_drawdown,
     feature_sanity,
     gross_vs_net,
@@ -120,9 +122,14 @@ except ImportError as exc:
 for name, labels in label_sets.items():
     print(f"\n=== {name}: next-day equity by label (does the state predict direction?) ===")
     print(label_profile(labels, master).to_string())
-    print("  mean dwell:", {k: round(v, 1) for k, v in dwell_times(labels.to_numpy()).items()})
+    # The same question at episode granularity. `days` is not a sample size: a label spanning 94
+    # days across 2 episodes is n=2, and ann_ret_ex_largest says whether one event is carrying it.
+    print(f"--- {name}: by EPISODE, not by day ---")
+    print(episode_profile(labels, master).to_string())
 if "jump" in label_sets:
-    print("  hmm/jump label agreement:", round(float((label_sets["jump"] == regimes).mean()), 3))
+    print("\n  hmm/jump label agreement:", round(float((label_sets["jump"] == regimes).mean()), 3))
+    print("  labels cross-tab (rows hmm, cols jump):")
+    print(pd.crosstab(regimes, label_sets["jump"]).to_string())
 
 # With a cash sleeve in the universe, scoring against rf=0 would hand every defensive book a
 # free Sharpe boost for simply holding cash. Charge the cash rate the book could have earned.
@@ -144,15 +151,23 @@ for col, header in (("ret_gross", "gross of costs"), ("ret_net", f"net of {cfg.c
 # engine, volatility targeting, drawdown feature. The cash-leg 60/40 and the cash_ret feature
 # fix are a benchmark and a bug fix, not searched variants, so neither moves this count.
 TRIALS = 7
+# Two block lengths, because they answer two different questions. optimal_block_length reads
+# ~2.3 days off RETURN autocorrelation, which is right for a claim about daily returns. A claim
+# about a REGIME is supported by how often the regime recurred, and these regimes persist ~25
+# days, so the regime-scale interval is the honest one for anything said about the states.
+regime_block = float(np.mean(list(dwell_times(regimes.to_numpy()).values())))
 print(f"\n=== deflation, all books, {TRIALS} trials, sr spread 0.4 (excess of rf) ===")
+print(f"    regime block = {regime_block:.1f}d (mean dwell) vs the return-derived block per row")
 sharpes, cis = {}, {}
 for name, book in books.items():
     excess = book["ret_net"] - rf / 252.0
     sharpes[name] = sharpe(excess)
     cis[name] = bootstrap_ci(excess, n_boot=2000)
+    wide = bootstrap_ci(excess, n_boot=2000, mean_block=regime_block)
     print(
         f"{name:20s} block={optimal_block_length(excess):5.1f}d  "
         f"CI=({cis[name][0]:6.3f}, {cis[name][1]:6.3f})  "
+        f"regimeCI=({wide[0]:6.3f}, {wide[1]:6.3f})  "
         f"DSR={deflated_sharpe(excess, TRIALS, 0.4):.3f}"
     )
 
@@ -182,6 +197,10 @@ save(ax, "weight_stack")
 ax = label_profile_bars(label_profile(regimes, master))
 ax.set_title(f"{market.upper()} volatility orders with the label, return does not")
 save(ax, "label_profile")
+
+# Effective sample size, made visual: the crisis label's whole reputation is one bar.
+ax = episode_bars(regimes, master)
+save(ax, "episode_bars")
 
 ax = sharpe_forest(sharpes, cis)
 ax.set_title(f"{market.upper()} Sharpe with 95% bootstrap intervals")

@@ -111,6 +111,34 @@ and late 2022 are as volatile as the crashes that preceded them. Supporting chec
   sitting between 10% and 20%. The strategy is not taking too much risk; it is taking far too
   little, which is also why volatility targeting at 10% barely binds.
 
+### Effective sample size
+
+`days` is not a sample size, and this is the check that matters most in the whole repo. A claim
+about a *regime* is supported by how many times that regime occurred, not by how many rows it
+spanned. The two differ by more than an order of magnitude here:
+
+| label | India days | India episodes | India ann ret | ex-largest | US days | US episodes | US ann ret | ex-largest |
+|---|---|---|---|---|---|---|---|---|
+| 0 Bull | 822 | 27 | +10.2% | +2.7% | 666 | 25 | +10.9% | +8.3% |
+| 1 Bear | 731 | 30 | +15.0% | +13.1% | 841 | 40 | +14.7% | +14.8% |
+| 2 Crisis | 261 | **14** | +18.4% | **+53.6%** | 379 | **17** | +16.1% | +21.7% |
+
+`ex-largest` drops each label's single longest episode and re-annualizes. Read the India crisis row:
+261 days sounds like evidence, 14 episodes is the truth, only 3 of them lost money, and removing
+COVID takes the label from +18.4% to **+53.6%**. `results/india_episode_bars.png` shows it as one
+deep red bar in a field of green.
+
+The US crisis label survives the same test (17 episodes, ex-largest +21.7%), which is the useful
+contrast: the backwards return ordering is robust to episode counting on both universes. What did
+*not* survive was this project's own apparent counter-example, retracted above.
+
+Two block lengths are also reported for every Sharpe interval, one read off return autocorrelation
+(~2.3 days) and one at the regime scale (~25 days). That was run expecting the regime-scale
+intervals to be materially wider; they are not. They move by about 0.1 to 0.2 Sharpe points and
+mostly slightly *inward*, because longer blocks preserve the volatility clustering the Sharpe
+denominator depends on. Reported as measured rather than as predicted: the "intervals are too wide
+to rank on" conclusion holds regardless of the block choice, which is what makes it worth trusting.
+
 **BIC supports K=3 on India but not on the US.** Marginal fit bought per added state: India 2->3
 6256, 3->4 **392**, 4->5 3125, a genuine elbow at three. US 2->3 5467, 3->4 3005, 4->5 1891, a
 steady decline with no elbow, which is the signature of a model carving up a fat-tailed continuum
@@ -180,6 +208,8 @@ gitignored; the notebook outputs are how a reader sees them without running anyt
   downstream claim rests on.
 - `*_label_profile.png` - next-day return and volatility per label. The central finding in one
   frame: volatility ordered, return ordered backwards.
+- `*_episode_bars.png` - one bar per crisis episode, red if it lost money, width proportional to
+  duration. Effective sample size made visual: on India, one deep red bar among fourteen.
 - `*_weight_stack.png` - portfolio weights over time under the regime ribbon. Shows the stance map
   working, and shows equity pinned under 25% throughout.
 - `*_gross_vs_net.png` - the two equity curves with the compounding cost wedge between them.

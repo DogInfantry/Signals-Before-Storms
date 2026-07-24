@@ -18,7 +18,9 @@ from regime_shift.metrics import (
     bootstrap_ci,
     calmar,
     deflated_sharpe,
+    episode_profile,
     expected_max_sharpe,
+    label_profile,
     max_drawdown,
     optimal_block_length,
     probabilistic_sharpe,
@@ -95,6 +97,36 @@ def test_bootstrap_ci_brackets_the_point_estimate():
     # a hand-pinned block must still work, and a longer one cannot tighten the interval much
     pinned_lo, pinned_hi = bootstrap_ci(r, n_boot=300, seed=1, mean_block=21)
     assert pinned_lo < sharpe(r) < pinned_hi
+
+
+def test_episode_profile_drops_the_largest_episode():
+    """The check that retracted this project's apparent directional-regime finding.
+
+    Label 1 here is deliberately built to look like that result: one long losing episode and one
+    short winning one. Pooled over days it reads negative; drop the longest episode and it flips
+    positive, which is the signature of a state whose whole reputation is a single event.
+    """
+    n = 40
+    idx = pd.bdate_range("2020-01-01", periods=n)
+    # equity_ret is a LOG return series, and episode_profile scores master.shift(-1)
+    rets = np.full(n, 0.001)
+    rets[1:21] = -0.004  # the long losing episode's forward returns
+    rets[25:30] = 0.010  # the short winning one's
+    master = pd.DataFrame({"equity_ret": rets}, index=idx)
+
+    labels = pd.Series(0, index=idx)
+    labels.iloc[0:20] = 1  # 20-day episode
+    labels.iloc[24:29] = 1  # 5-day episode
+    prof = episode_profile(labels, master)
+
+    assert prof.loc[1, "episodes"] == 2
+    assert prof.loc[1, "days"] == 25
+    assert prof.loc[1, "neg_episodes"] == 1
+    assert prof.loc[1, "ann_ret"] < 0  # pooled over days the state looks directional
+    assert prof.loc[1, "ann_ret_ex_largest"] > 0  # one event was carrying it
+
+    # label_profile now carries the same episode count, so the day count is never read alone
+    assert label_profile(labels, master).loc[1, "episodes"] == 2
 
 
 def test_summary_reports_the_book_columns():

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from regime_shift.regime import REGIME_NAMES_3
+from regime_shift.regime import REGIME_NAMES_3, label_episodes
 
 REGIME_COLORS = ("#2e7d32", "#f9a825", "#c62828")  # ascending risk: calm, stressed, crisis
 
@@ -27,10 +27,14 @@ STRESS_SPANS = (
 
 
 def _blocks(labels: pd.Series):
-    """Contiguous runs of a single label, as (start, end, label)."""
-    runs = labels.ne(labels.shift()).cumsum()
-    for _, grp in labels.groupby(runs):
-        yield grp.index[0], grp.index[-1], int(grp.iloc[0])
+    """Contiguous runs of a single label, as (start, end, label).
+
+    Thin adapter over regime.label_episodes so the project has exactly one run-length
+    implementation. The episode count is the sample size behind every regime claim, and two
+    implementations that can drift apart are two chances to get that wrong.
+    """
+    for row in label_episodes(labels).itertuples():
+        yield row.start, row.end, int(row.label)
 
 
 def _names(n: int, names) -> tuple[str, ...]:
@@ -290,6 +294,64 @@ def sharpe_forest(sharpes: dict, cis: dict, ax=None):
     ax.axvline(0.0, color="black", lw=0.8, ls="--")
     ax.set_yticks(y, order)
     ax.set_xlabel("Sharpe (95% stationary-bootstrap interval)")
+    return ax
+
+
+def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = None, ax=None):
+    """One bar per episode of a regime: how that episode actually paid, in date order.
+
+    The figure that makes effective sample size impossible to ignore. A state that genuinely
+    predicts down moves shows a row of negative bars. A state whose whole reputation rests on one
+    crash shows a single deep bar and a crowd of positive ones, and no amount of day-count
+    n = 1814 makes that a repeatable effect.
+
+    Bar width is proportional to episode length, so the eye weights a 64-day episode above a
+    3-day flicker rather than treating every run as one vote.
+    """
+    labels = pd.Series(labels).dropna().astype(int)
+    label = int(labels.max()) if label is None else label
+    eps = label_episodes(labels)
+    eps = eps[eps["label"] == label]
+    if eps.empty:
+        raise ValueError(f"no episodes for label {label}")
+
+    fwd = np.expm1(master.shift(-1)).loc[labels.index, "equity_ret"]
+    idx = labels.index
+    rets, widths, centres, pos = [], [], [], 0.0
+    for start, end, days in zip(eps["start"], eps["end"], eps["days"], strict=True):
+        r = fwd[(idx >= start) & (idx <= end)].dropna()
+        rets.append(float((1.0 + r).prod() - 1.0))
+        w = float(days)
+        widths.append(w)
+        centres.append(pos + w / 2.0)
+        pos += w * 1.25  # a gap, so adjacent episodes stay countable
+
+    ax = ax or plt.subplots(figsize=(11, 4.5))[1]
+    ax.bar(
+        centres,
+        rets,
+        width=widths,
+        color=["#c62828" if v < 0 else "#2e7d32" for v in rets],
+        edgecolor="white",
+    )
+    ax.axhline(0.0, color="black", lw=0.8)
+    # Label only episodes wide enough to carry text. A three-day flicker and a sixty-day crisis
+    # both get a bar, but only the second gets a date, otherwise the short ones overprint.
+    floor = 0.04 * pos
+    ax.set_xticks(
+        centres,
+        [
+            pd.Timestamp(s).strftime("%Y-%m") if w >= floor else ""
+            for s, w in zip(eps["start"], widths, strict=True)
+        ],
+        rotation=90,
+    )
+    ax.set_ylabel("episode cumulative return")
+    neg = sum(v < 0 for v in rets)
+    ax.set_title(
+        f"label {label}: {len(rets)} episodes over {int(eps['days'].sum())} days, "
+        f"{neg} negative (bar width = days)"
+    )
     return ax
 
 

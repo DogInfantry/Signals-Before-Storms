@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import kurtosis, norm, skew
 
+from regime_shift.regime import label_episodes
+
 _EULER = 0.5772156649015329
 
 
@@ -193,6 +195,7 @@ def label_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFr
     directional bet placed on them can pay however the weights are chosen.
     """
     labels = pd.Series(labels).dropna().astype(int)
+    eps = label_episodes(labels)
     fwd = np.expm1(master.shift(-1)).loc[labels.index]
     rows = []
     for label, grp in fwd.groupby(labels):
@@ -203,6 +206,9 @@ def label_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFr
         row = {
             "label": int(label),
             "days": int(r.size),
+            # the sample size that actually supports a claim about this state, reported next to
+            # `days` on purpose: 94 days spread over 2 episodes is n=2, not n=94.
+            "episodes": int((eps["label"] == label).sum()),
             "eq_ann_ret": float((1.0 + r).prod() ** (periods / r.size) - 1.0),
             "eq_ann_vol": float(sd * np.sqrt(periods)),
             "eq_sharpe": float(r.mean() / sd * np.sqrt(periods)) if sd > 0 else float("nan"),
@@ -210,6 +216,49 @@ def label_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFr
         if "vix" in master.columns:
             row["vix_mean"] = float(master.loc[grp.index, "vix"].mean())
         rows.append(row)
+    return pd.DataFrame(rows).set_index("label").round(3)
+
+
+def episode_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFrame:
+    """Per label, the same question as label_profile asked at EPISODE granularity.
+
+    `ann_ret_ex_largest` is the column that earns this function: drop the single longest episode
+    and re-annualize. A state whose whole result is one event collapses here, which is exactly
+    what happened to this project's apparent discovery of a directional regime. The Jump Model's
+    India crisis label read -17.1% over 94 days and looked like a finding; it was two episodes,
+    and dropping the longer one (COVID) flips it to +30.2%.
+
+    `neg_episodes` is the companion check: how many separate times did this state actually lose
+    money? One out of two is an anecdote however many rows it spans.
+    """
+    labels = pd.Series(labels).dropna().astype(int)
+    eps = label_episodes(labels)
+    fwd = np.expm1(master.shift(-1)).loc[labels.index, "equity_ret"]
+
+    def _ann(mask: np.ndarray) -> float:
+        r = fwd[mask].dropna()
+        return float((1.0 + r).prod() ** (periods / r.size) - 1.0) if r.size else float("nan")
+
+    idx = labels.index
+    rows = []
+    for label, grp in eps.groupby("label"):
+        masks = [(idx >= s) & (idx <= e) for s, e in zip(grp["start"], grp["end"], strict=True)]
+        cum = [float((1.0 + fwd[m].dropna()).prod() - 1.0) for m in masks]
+        longest = int(np.argmax(grp["days"].to_numpy()))
+        kept = [m for i, m in enumerate(masks) if i != longest]
+        rows.append(
+            {
+                "label": int(label),
+                "episodes": len(masks),
+                "days": int(grp["days"].sum()),
+                "mean_dwell": float(grp["days"].mean()),
+                "neg_episodes": int(sum(c < 0 for c in cum)),
+                "ann_ret": _ann(np.logical_or.reduce(masks)),
+                "ann_ret_ex_largest": _ann(np.logical_or.reduce(kept))
+                if kept
+                else float("nan"),
+            }
+        )
     return pd.DataFrame(rows).set_index("label").round(3)
 
 
