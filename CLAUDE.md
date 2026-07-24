@@ -38,6 +38,19 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   comparison is like-for-like by construction. A benchmark costed differently is not a benchmark.
 - Results are deflated. Probabilistic + deflated Sharpe and a stationary bootstrap CI accompany
   every headline number, with the trial count stated honestly.
+- **COMPARISONS USE A PAIRED DIFFERENCE TEST, NEVER OVERLAPPING MARGINAL CIs (Phase 11).** Two
+  overlapping intervals each say "this book beats zero"; they say NOTHING about the gap between two
+  books. `metrics.paired_bootstrap` draws ONE index matrix and applies it to both series, which
+  cancels the shared market move and comes out ~3x tighter than the marginals. Result: every book
+  on BOTH universes spans zero against both benchmarks, so "indistinguishable from the benchmarks"
+  is now earned rather than assumed. On US the vol rule's MARGINAL CI excludes zero but its PAIRED
+  CI vs 60/40 is (-0.029, +0.559): it beats zero, it does not beat the benchmark. Do not restate
+  the old "only the vol rule excludes zero" as if it were a comparison.
+  **LANDMINE: Sharpe is not translation invariant.** Feed `paired_bootstrap` the SAME rf-excess
+  series the point estimates use. Passing raw `ret_net` against rf-adjusted point estimates
+  produced intervals that did not bracket their own point estimate and gave confident, wrong
+  "EXCLUDES 0" verdicts. `tests/test_metrics.py::test_paired_interval_brackets_its_own_point_estimate`
+  pins it.
 - **EFFECTIVE SAMPLE SIZE (Phase 10, the most load-bearing rigor in the repo). `days` is NOT a
   sample size; `episodes` is.** ALWAYS quote episodes next to days for any regime claim. India
   crisis = 261 days but only **14 episodes**, 3 of them negative, and `ann_ret_ex_largest` (drop
@@ -99,6 +112,9 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
     `rebalance_confirm_days`) or `monthly`. `conditional` estimates mu/Sigma from PAST SAME-LABEL
     days, falling back to full history below `cfg.conditional_min_obs`. `target_vol` scales the
     whole book toward a constant risk budget, long-only, never levered.
+  - `sensitivity_sweep(regimes, returns, cfg, grid)` re-scores ONE knob at a time via
+    `cfg.model_copy`, returns a tidy frame with `is_default`. Reports the surface and adopts
+    NOTHING, which is what keeps it zero-DSR. Only knobs that leave the labels alone belong here.
   - Log returns are converted with `expm1` before any portfolio sum (a weighted sum of logs is
     not the log of the portfolio). Non-trade days have EXACTLY zero turnover and zero cost.
   - Output cols: `regime` (Int64), `w_<asset>`, `turnover`, `cost`, `ret_gross`, `ret_net`,
@@ -106,6 +122,8 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 - `src/regime_shift/metrics.py`: takes SIMPLE returns. `ann_return` (geometric), `ann_vol`,
   `sharpe(rf)`, `sortino`, `max_drawdown` (negative), `calmar`, `probabilistic_sharpe` (Bailey/
   Lopez de Prado PSR; benchmark arg is ANNUALIZED), `expected_max_sharpe(n_trials, trial_sr_std)`,
+  `paired_bootstrap` (CI of stat(a)-stat(b) on JOINTLY resampled dates; pass excess returns),
+  `subperiod_summary(books, splits)` (scorecard per block, carries `days` because blocks are short),
   `deflated_sharpe`, `optimal_block_length` (Politis-White 2004; ~2.9 days on real US returns),
   `bootstrap_ci` (Politis-Romano STATIONARY bootstrap, vectorized; `mean_block=None` reads it off
   the data), `label_profile(labels, master)` (next-day return/vol/Sharpe/VIX per label, THE central
@@ -123,23 +141,24 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   renders as a white stripe), `equity_drawdown(books)`, `transition_heatmap(P)`, `return_panel`
   (R2: raw returns + log-count marginals), `feature_sanity` (R6: vol_21/vix with stress shaded),
   `gross_vs_net` (C4 visual), `weight_stack` (regime ribbon ABOVE the stack so it never hides a
-  weight), `label_profile_bars`, `bic_curve`, `sharpe_forest`. All take/return an axis (or an array
+  weight), `label_profile_bars`, `bic_curve`, `sharpe_forest`, `episode_bars`, `regime_weight_heatmap`,
+  `rolling_sharpe`, `sensitivity_panel`. All take/return an axis (or an array
   of them); caller saves. `real_run.save()` handles either shape.
 - `src/regime_shift/narrate.py`: STUB. Optional LLM narration, report-only. Never implemented.
-- `tests/` (42 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+- `tests/` (45 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
   `test_features` 2 (the fixture carries ALL FOUR asset roles and asserts no `*_ret` reaches the
   feature matrix), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
-  engine via importorskip, label_episodes run counting incl. leading/trailing single-day runs), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 6 (1-day lag
+  engine via importorskip, label_episodes run counting incl. leading/trailing single-day runs), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 7 (1-day lag
   by flipping a future label, flat-then-entry, conditional moments + fallback, target_vol,
-  zero-turnover-is-free), `test_metrics` 10 (incl. episode_profile dropping the largest episode), `test_benchmarks` 6 (incl. cash sleeve and the 60/40
+  zero-turnover-is-free), `test_metrics` 13 (episode_profile ex-largest, paired pairing + CI brackets its point estimate, subperiod partition), `test_benchmarks` 6 (incl. cash sleeve and the 60/40
   cash-leg fallback), `test_data` 3.
 - `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
   **defaulting to india**. Requests macro explicitly and PRINTS whether it landed (the module
   silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
-  label tables, BOTH gross and net scorecards, and the deflation table; writes 11 figures to
+  label tables, BOTH gross and net scorecards, and the deflation table; writes 14 figures to
   `results/`. matplotlib Agg, no display needed.
-- `notebooks/driver.ipynb`: 45 cells, India-primary (`MARKET = "india"` in the config cell),
-  executes clean with 11 embedded figures and a US robustness section at the end. Threads
+- `notebooks/driver.ipynb`: 56 cells, India-primary (`MARKET = "india"` in the config cell),
+  executes clean with 14 embedded figures and a US robustness section at the end. Threads
   `rf` into every `summary` call. Regenerate: `uv run papermill notebooks/driver.ipynb
   notebooks/driver.ipynb --kernel python3`. Generator script lives in the session scratchpad, not
   the repo; edit the notebook in place or regenerate from that script.
@@ -152,16 +171,16 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 
 ## Current state
 - **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
-- 42 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- 45 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
 - Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**
   (re-probed 2026-07-24: ReadTimeout), so both entry points request macro, warn, and continue.
   Every published number is macro-free and both entry points print `landed=NONE` to say so.
   US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
   Feature matrices are 9 columns on BOTH universes now (was 10 on India, see landmine 4).
-- 22 figures in `results/` (gitignored): `{india,us}_{returns,feature_sanity,label_profile,episode_bars,
+- 28 figures in `results/` (gitignored): `{india,us}_{returns,feature_sanity,label_profile,episode_bars,
   weight_stack,gross_vs_net,sharpe_forest,bic_curve,regime_overlay,equity_drawdown,
-  transition_heatmap}.png`. The notebook's embedded copies are what a reader without the repo sees.
+  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. The notebook's embedded copies are what a reader without the repo sees.
 - Phases 0-9 done, three follow-up extensions, plus the spec-adherence pass. Only `narrate.py`
   remains a stub (optional).
 
@@ -279,16 +298,24 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight. Clean stopping point.** Two passes landed 2026-07-24 and both are pushed:
+**Nothing in flight. Clean stopping point.** Phase 11 landed 2026-07-25: paired difference tests
+(which corrected an invalid overlapping-marginal-CI inference), sub-period stability, a parameter
+sensitivity surface, and 3 new figures. 45 tests green, ruff clean, US bit-identical.
+
+Earlier, two passes landed 2026-07-24 and both are pushed:
 (1) spec-adherence (gross-vs-net, real India 60/40, India-primary notebook, 7 new figures,
 `cash_ret` fix), (2) Phase 10 effective sample size (`label_episodes`, `episode_profile`,
 `episode_bars`, dual CIs) plus the retraction of the jump directional-state claim. 42 tests green,
 ruff clean.
 
 ## Next steps
-1. **Nothing is required.** Phases 0-10 are done and pushed. Stopping here is legitimate: the
+1. **Nothing is required.** Phases 0-11 are done and pushed. Stopping here is legitimate: the
    deliverable is a rigorous negative result, diagnosed, with its own retraction documented.
-2. Phase 10 is DONE. Its lesson generalizes: before believing any regime result, count episodes
+2. Phase 11 flagged ONE caveat worth remembering: `weight_cap=0.6` and `rebalance_confirm_days=3`
+   are each at or near a local Sharpe optimum in the sweep. Both were fixed before any result was
+   computed and neither was re-chosen, and the README says so plainly rather than hiding it. If a
+   future session ever changes a default, it owes a DSR trial.
+3. Phase 10 is DONE. Its lesson generalizes: before believing any regime result, count episodes
    and drop the largest. That check retracted this project's own apparent discovery.
 3. Beyond that the evidence still points at a **directional state variable**: credit spreads
    (FRED `BAA10Y`, now genuinely requested by both entry points, but FRED is blocked on this
@@ -315,7 +342,7 @@ ruff clean.
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 42 tests
+uv run pytest -q              # 45 tests
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
 uv run python notebooks/real_run.py india          # PRIMARY: full run + 10 figures

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from regime_shift.backtest import run_book
 from regime_shift.config import load_config
@@ -23,9 +24,11 @@ from regime_shift.metrics import (
     label_profile,
     max_drawdown,
     optimal_block_length,
+    paired_bootstrap,
     probabilistic_sharpe,
     sharpe,
     sortino,
+    subperiod_summary,
     summary,
 )
 
@@ -97,6 +100,78 @@ def test_bootstrap_ci_brackets_the_point_estimate():
     # a hand-pinned block must still work, and a longer one cannot tighten the interval much
     pinned_lo, pinned_hi = bootstrap_ci(r, n_boot=300, seed=1, mean_block=21)
     assert pinned_lo < sharpe(r) < pinned_hi
+
+
+def test_paired_bootstrap_uses_the_pairing():
+    """The pairing is the whole point, and it is what would break silently.
+
+    Comparing correlated books on independently resampled dates throws away the correlation and
+    inflates the interval, which is the error this function exists to avoid. Both assertions below
+    fail if the two series are ever resampled with different indices.
+    """
+    rng = np.random.default_rng(0)
+    idx = pd.bdate_range("2016-01-01", periods=800)
+    a = pd.Series(rng.normal(0.0004, 0.01, 800), index=idx)
+
+    # a book against itself: the difference is identically zero on every replicate
+    lo, hi = paired_bootstrap(a, a, n_boot=400)
+    assert lo <= 0.0 <= hi
+    assert hi - lo < 1e-9
+
+    # same book plus a steady edge: the difference is real and the interval must exclude zero,
+    # even though the two marginal Sharpe intervals overlap almost entirely
+    b = a + 0.0004
+    lo, hi = paired_bootstrap(b, a, n_boot=400)
+    assert lo > 0.0
+
+    marg_b = bootstrap_ci(b, n_boot=400)
+    marg_a = bootstrap_ci(a, n_boot=400)
+    assert marg_b[0] < marg_a[1], "marginals should overlap; that is exactly why pairing matters"
+
+    with pytest.raises(ValueError, match="shared index"):
+        paired_bootstrap(a, a.iloc[:-5])
+
+
+def test_paired_interval_brackets_its_own_point_estimate():
+    """A percentile interval that excludes its own point estimate is reporting a different
+    quantity, and that failure is invisible unless it is asserted.
+
+    It happened for real here: the driver bootstrapped raw returns while the point estimates used
+    rf-excess returns. Sharpe is not translation invariant, so the interval drifted off the
+    estimate entirely and produced confident, wrong verdicts.
+    """
+    rng = np.random.default_rng(3)
+    idx = pd.bdate_range("2016-01-01", periods=700)
+    rf_daily = 0.0379 / 252
+    a = pd.Series(rng.normal(0.0006, 0.004, 700), index=idx)
+    b = pd.Series(rng.normal(0.0009, 0.011, 700), index=idx)
+
+    for x, y in ((a, b), (a - rf_daily, b - rf_daily)):
+        point = sharpe(x) - sharpe(y)
+        lo, hi = paired_bootstrap(x, y, n_boot=600)
+        assert lo <= point <= hi, f"CI ({lo:.3f}, {hi:.3f}) excludes point {point:.3f}"
+
+
+def test_subperiod_summary_partitions_the_window():
+    cfg = load_config()
+    # long enough to actually reach the post-COVID block; a fixture that stops in 2020 would
+    # silently test two blocks and pass
+    n = 780
+    idx = pd.bdate_range("2019-01-01", periods=n)
+    rets = pd.DataFrame({"equity_ret": np.full(n, 0.0004)}, index=idx)
+    book = run_book(rets, idx, lambda t: (None, np.array([1.0])), cfg)
+
+    splits = [
+        ("pre", "2019-01-01", "2020-02-14"),
+        ("covid", "2020-02-15", "2020-12-31"),
+        ("post", "2021-01-01", "2021-12-31"),
+    ]
+    table = subperiod_summary({"only": book}, splits)
+
+    assert list(table.index.get_level_values("period")) == ["pre", "covid", "post"]
+    # the blocks tile the window exactly: no day double counted, none dropped
+    assert table["days"].sum() == len(book)
+    assert (table["days"] > 0).all()
 
 
 def test_episode_profile_drops_the_largest_episode():

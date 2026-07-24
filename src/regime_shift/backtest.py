@@ -173,3 +173,48 @@ def run_backtest(
         return traded, target
 
     return run_book(rets, regimes.index, decide, cfg)
+
+
+def sensitivity_sweep(
+    regimes: pd.Series,
+    returns: pd.DataFrame,
+    cfg,
+    grid: dict[str, list],
+    rf: float = 0.0,
+    **backtest_kwargs,
+) -> pd.DataFrame:
+    """Re-score the SAME strategy across a grid of config values, one knob at a time.
+
+    Reports the whole surface and deliberately picks no winner. That distinction is what keeps
+    this a robustness check rather than a search: a result that survives only at one cost
+    assumption or one confirmation window is an artifact of that knob, and a reader is entitled to
+    see the shape rather than the single point the author happened to ship. Adopting the
+    best-scoring cell afterwards would spend a deflated-Sharpe trial, and is not done.
+
+    Only knobs that leave the regime labels untouched belong here, because those re-run the
+    backtest and nothing else. Anything affecting the walk-forward geometry or the state count
+    needs a full per-point refit and is a different, far more expensive question.
+
+    Each variant is an independent `cfg.model_copy`, so nothing mutates the caller's config.
+    """
+    from regime_shift.metrics import summary  # local: metrics has no backtest dependency
+
+    rows = []
+    for knob, values in grid.items():
+        for value in values:
+            book = run_backtest(
+                regimes, returns, cfg.model_copy(update={knob: value}), **backtest_kwargs
+            )
+            s = summary(book, rf=rf)
+            rows.append(
+                {
+                    "knob": knob,
+                    "value": value,
+                    "is_default": value == getattr(cfg, knob),
+                    "sharpe": s["sharpe"],
+                    "max_drawdown": s["max_drawdown"],
+                    "calmar": s["calmar"],
+                    "turnover_ann": s["turnover_ann"],
+                }
+            )
+    return pd.DataFrame(rows).round(4)

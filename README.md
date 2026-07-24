@@ -47,11 +47,12 @@ ranking.
 | static 60/40 (equity/cash) | 9.8% | 10.0% | 0.604 | 0.607 | 0.827 | -23.7% | 0.413 | 0.36x | 0.552 | (-0.16, 1.44) |
 
 Read the Sharpe column alone and the strategy is unremarkable: mid-pack, inside a cluster spanning
-0.75 to 0.88 that no confidence interval can separate. Read the two columns the brief names
-alongside it, **max drawdown and Calmar**, and the picture inverts. That is not noise; it is the
-mechanical consequence of routing to minimum variance whenever the label is not calm. The overlay
-buys drawdown protection and pays for it in return, and whether that trade is worth making is a
-mandate question rather than a statistical one.
+0.75 to 0.88. **No book here is statistically distinguishable from either static benchmark**, and
+that is established below by a paired difference test rather than by eyeballing overlapping
+intervals. Read the two columns the brief names alongside it, **max drawdown and Calmar**, and the
+picture inverts. That is not noise; it is the mechanical consequence of routing to minimum variance
+whenever the label is not calm. The overlay buys drawdown protection and pays for it in return, and
+whether that trade is worth making is a mandate question rather than a statistical one.
 
 The drawdown-feature variant tops the table and is **not** counted as a win. Its criterion was
 pre-registered before any Sharpe was computed (see
@@ -78,9 +79,10 @@ Deflated Sharpe is quoted at **7 trials**, the honest count of variants actually
 which is exactly what deflation is for.
 
 **The US does not reproduce India, and saying so is the point of running it.** Here the strategy
-loses outright on every metric including the two that vindicated it on India, and only the
-volatility rule has an interval excluding zero. Minimum variance had nowhere to hide in 2022, when
-bonds fell alongside equities. A result that held on one market and was quietly assumed to hold on
+loses outright on every metric including the two that vindicated it on India. Only the volatility
+rule has a *marginal* interval excluding zero, and even that says only that its Sharpe beats zero:
+paired against the benchmarks it does not separate from them either. Minimum variance had nowhere
+to hide in 2022, when bonds fell alongside equities. A result that held on one market and was quietly assumed to hold on
 the other would be the more comfortable story; it is not the one the data tells.
 
 ### Why the HMM does not earn its Sharpe
@@ -110,6 +112,72 @@ and late 2022 are as volatile as the crashes that preceded them. Supporting chec
 - The portfolio-weight figure shows equity never exceeding a quarter of the book and mostly
   sitting between 10% and 20%. The strategy is not taking too much risk; it is taking far too
   little, which is also why volatility targeting at 10% barely binds.
+
+### Is any of this distinguishable
+
+Two overlapping confidence intervals do not mean two strategies are indistinguishable. Each
+marginal interval asks whether one book's Sharpe differs from zero; the question here is whether
+the *gap* between two books differs from zero, and that needs the interval of the difference,
+resampled on the same dates for both books. Since every book holds the same assets on the same
+days, differencing cancels most of the shared market move and the paired interval comes out roughly
+three times tighter than the marginals.
+
+India, Sharpe difference against each static benchmark, 95%:
+
+| book | vs 60/40 | vs equal weight |
+|---|---|---|
+| HMM + drawdown feature | +0.273 (-0.36, +0.86) | +0.063 (-0.19, +0.28) |
+| vol-threshold rule | +0.244 (-0.39, +0.79) | +0.033 (-0.23, +0.28) |
+| Jump Model | +0.224 (-0.36, +0.77) | +0.014 (-0.25, +0.25) |
+| HMM, conditional | +0.220 (-0.47, +0.83) | +0.009 (-0.28, +0.26) |
+| HMM, unconditional | +0.144 (-0.64, +0.83) | -0.066 (-0.43, +0.25) |
+
+**Every interval spans zero, on both universes.** The "it is all noise" reading survives, and is now
+earned rather than assumed. The sharpest correction is on the US: the volatility rule's *marginal*
+interval excludes zero (0.238, 1.652), which says only that its Sharpe beats zero. Paired against
+60/40 it is +0.268 (-0.029, +0.559) and against equal weight +0.308 (-0.018, +0.671). Both graze
+zero, so even the ablation that wins the US table cannot be said to beat the benchmarks.
+
+### Sub-period stability
+
+Phase 10 showed one event can carry a regime label. The same question applies to the strategy.
+Splits are named from market history, not chosen after seeing which boundaries flatter the result.
+
+| period | days | HMM Sharpe | 60/40 Sharpe | HMM maxDD | 60/40 maxDD |
+|---|---|---|---|---|---|
+| pre-COVID (to 2020-02-14) | 868 | 0.649 | 0.556 | -4.5% | -8.6% |
+| COVID (2020-02-15..12-31) | 216 | 1.238 | 0.523 | -6.2% | -23.0% |
+| post-COVID (2021 onward) | 730 | 0.869 | 0.820 | -2.9% | -10.0% |
+
+**The drawdown advantage is not a COVID artifact**: the HMM books hold a smaller worst drawdown
+than both benchmarks in all three blocks, and the gap is widest during COVID itself, which is
+where a defensive overlay should earn its keep. The Sharpe ordering, by contrast, moves block to
+block, and `results/*_rolling_sharpe.png` shows the lines crossing repeatedly. The drawdown result
+has a mechanism; the Sharpe ranking does not.
+
+### Parameter sensitivity
+
+Every knob was a single unexamined value. The sweep re-scores the same strategy across a grid, one
+knob at a time, and **reports the surface without adopting anything** - picking the best cell would
+be a search and would owe the deflated Sharpe another trial.
+
+| knob | range | Sharpe across the range |
+|---|---|---|
+| `costs_bps` | 0 to 25 | 0.841 -> 0.785 |
+| `conditional_min_obs` | 63 to 252 | 0.831 -> 0.828 |
+| `rebalance_confirm_days` | 0 to 10 | 0.728 / 0.728 / **0.824** / 0.775 / 0.835 |
+| `weight_cap` | 0.4 to 1.0 | 0.804 / 0.824 / **0.824** / 0.743 / 0.378 |
+
+**Costs are not the story.** At zero cost the strategy still does not beat its benchmarks, which is
+a cleaner statement of the result than any net number: this is not a book that would work if
+trading were cheaper.
+
+**But two knobs are not flat, and the shipped defaults sit at local optima.** `weight_cap = 0.6` and
+`rebalance_confirm_days = 3` are each at or near the top of their range. Both were fixed before any
+results were computed and neither is being re-chosen here, but a reader is entitled to be told the
+defaults are favourably placed rather than left to find out. The collapse at `weight_cap = 1.0` is
+mechanical: uncapped, the optimizer puts the book in the lowest-variance asset, which is cash. No
+cell in the surface turns the strategy into a winner.
 
 ### Effective sample size
 
@@ -219,6 +287,10 @@ gitignored; the notebook outputs are how a reader sees them without running anyt
 - `*_regime_overlay.png` - out-of-sample regime path behind the equity curve. It independently
   flags Feb 2018, Q4 2018, COVID and 2022.
 - `*_equity_drawdown.png` - every book in the scorecard, log growth over drawdown.
+- `*_regime_weights.png` - mean weight per asset per regime: the stance map in one frame.
+- `*_rolling_sharpe.png` - trailing 252d Sharpe per book. The lines cross repeatedly, which is why
+  the end-of-sample ranking should not be read as a ranking.
+- `*_sensitivity.png` - Sharpe against each swept knob, shipped default circled.
 - `*_transition_heatmap.png` - transition matrix. The diagonal runs 0.96 to 0.98, and Bull never
   jumps straight to Crisis in either direction: the market always passes through the middle state.
 
@@ -311,7 +383,8 @@ pre-registered test.
 
 The deflated Sharpe is quoted at 7 trials throughout. The cash-leg 60/40 and the `cash_ret`
 feature fix are a benchmark and a bug fix respectively, not searched variants, so neither moves
-that count.
+that count. Neither does the parameter sweep: it reports a surface and adopts nothing, and the
+config still ships the values that were set before any result was computed.
 
 ## License and attribution
 

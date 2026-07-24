@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from regime_shift.backtest import run_backtest
+from regime_shift.backtest import run_backtest, sensitivity_sweep
 from regime_shift.config import load_config
 
 _COLS = ["equity_ret", "bond_ret", "gold_ret"]
@@ -108,6 +108,32 @@ def test_target_vol_de_risks_without_ever_levering():
     assert invested.max() <= 1.0 + 1e-9  # long-only, never levered
     assert invested.iloc[1] < 0.9  # and genuinely scaled down, not merely reweighted
     assert scaled["ret_net"].std() < full["ret_net"].std()  # less risk taken, as asked
+
+
+def test_sensitivity_sweep_applies_the_override():
+    """Charging more per trade can never improve a net Sharpe.
+
+    A monotone invariant rather than a golden number, so it survives any legitimate change to the
+    strategy while still catching the failure that matters: a sweep that builds the variant config
+    but silently backtests the default anyway would return a flat cost column and fail here.
+    """
+    cfg = load_config()
+    rets = _log_returns()
+    regimes = _regimes(rets.index)
+    regimes.iloc[50:] = cfg.hmm.n_states - 1  # force real turnover, else cost cannot bite
+
+    grid = {"costs_bps": [0.0, 7.5, 50.0]}
+    table = sensitivity_sweep(regimes, rets, cfg, grid)
+
+    row = table[table["knob"] == "costs_bps"].sort_values("value")
+    assert list(row["value"]) == [0.0, 7.5, 50.0]
+    sharpes = row["sharpe"].to_numpy()
+    assert np.all(np.diff(sharpes) <= 1e-12), f"net Sharpe rose with costs: {sharpes}"
+    assert sharpes[0] > sharpes[-1], "50 bps must cost something against free trading"
+    assert row["is_default"].sum() == 1  # the shipped 7.5 is flagged, and only it
+
+    # the caller's config is untouched: model_copy, never mutation
+    assert cfg.costs_bps == 7.5
 
 
 def test_zero_turnover_is_free_and_costs_only_drag():

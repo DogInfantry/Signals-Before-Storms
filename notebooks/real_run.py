@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from regime_shift.backtest import asset_cols, run_backtest
+from regime_shift.backtest import asset_cols, run_backtest, sensitivity_sweep
 from regime_shift.benchmarks import equal_weight, sixty_forty, sixty_forty_target, vol_rule_regimes
 from regime_shift.config import load_config
 from regime_shift.data import build_master
@@ -34,7 +34,9 @@ from regime_shift.metrics import (
     episode_profile,
     label_profile,
     optimal_block_length,
+    paired_bootstrap,
     sharpe,
+    subperiod_summary,
     summary,
 )
 from regime_shift.plots import (
@@ -45,7 +47,10 @@ from regime_shift.plots import (
     gross_vs_net,
     label_profile_bars,
     regime_overlay,
+    regime_weight_heatmap,
     return_panel,
+    rolling_sharpe,
+    sensitivity_panel,
     sharpe_forest,
     transition_heatmap,
     weight_stack,
@@ -171,6 +176,46 @@ for name, book in books.items():
         f"DSR={deflated_sharpe(excess, TRIALS, 0.4):.3f}"
     )
 
+# Overlapping marginal intervals say nothing about a difference. These books hold the same assets
+# on the same days, so the paired difference has far less variance than either book alone: this is
+# the test the comparison claim actually rests on.
+print("\n=== paired Sharpe difference vs each static benchmark (95%, same resampled dates) ===")
+# Feed the SAME excess series the point estimates use. Sharpe is not translation invariant, so
+# bootstrapping raw returns against rf-adjusted point estimates silently answers a different
+# question and produces an interval that does not bracket its own point estimate.
+excess_books = {k: v["ret_net"] - rf / 252.0 for k, v in books.items()}
+for bench in ("60_40", "equal_weight"):
+    print(f"--- vs {bench} ---")
+    for name in books:
+        if name == bench:
+            continue
+        d = sharpes[name] - sharpes[bench]
+        lo, hi = paired_bootstrap(excess_books[name], excess_books[bench], n_boot=2000)
+        verdict = "EXCLUDES 0" if lo > 0 or hi < 0 else "spans 0"
+        print(f"  {name:20s} dSharpe={d:+6.3f}  CI=({lo:+6.3f}, {hi:+6.3f})  {verdict}")
+
+# Does the whole result live inside one market episode? Splits are named from market history, not
+# chosen after seeing which ones flatter the strategy.
+SPLITS = [
+    ("pre_covid", cfg.dates["start"], "2020-02-14"),
+    ("covid", "2020-02-15", "2020-12-31"),
+    ("post_covid", "2021-01-01", cfg.dates["end"]),
+]
+print("\n=== sub-period stability (net; days quoted because these blocks are short) ===")
+print(subperiod_summary(books, SPLITS, rf=rf).to_string())
+
+# Is the result an artifact of one knob setting? Report the surface, adopt nothing: picking the
+# best cell here would spend a DSR trial, which is exactly what the trial count protects.
+GRID = {
+    "costs_bps": [0.0, 2.5, 5.0, 7.5, 15.0, 25.0],
+    "rebalance_confirm_days": [0, 1, 3, 5, 10],
+    "weight_cap": [0.4, 0.5, 0.6, 0.8, 1.0],
+    "conditional_min_obs": [63, 126, 252],
+}
+sweep_table = sensitivity_sweep(regimes, master, cfg, GRID, rf=rf, conditional=True)
+print("\n=== parameter sensitivity (hmm_conditional; surface reported, nothing adopted) ===")
+print(sweep_table.to_string(index=False))
+
 # --- figures -------------------------------------------------------------------------------
 # Look at the data before anything clever happens to it, and confirm the volatility feature
 # spikes where everyone already knows it should.
@@ -205,6 +250,18 @@ save(ax, "episode_bars")
 ax = sharpe_forest(sharpes, cis)
 ax.set_title(f"{market.upper()} Sharpe with 95% bootstrap intervals")
 save(ax, "sharpe_forest")
+
+ax = regime_weight_heatmap(books["hmm_conditional"])
+ax.set_title(f"{market.upper()} mean weight by regime: the stance map in one frame")
+save(ax, "regime_weights")
+
+ax = rolling_sharpe(books, rf=rf)
+ax.set_title(f"{market.upper()} rolling 252d Sharpe: is any ranking stable through time?")
+save(ax, "rolling_sharpe")
+
+axes = sensitivity_panel(sweep_table)
+axes[0].figure.suptitle(f"{market.upper()} parameter sensitivity (flat = conclusion is robust)")
+save(axes, "sensitivity")
 
 # Descriptive full-sample fit. The overlay above is the honest walk-forward path; the
 # transition matrix and the BIC sweep are model diagnostics and feed no trading decision.

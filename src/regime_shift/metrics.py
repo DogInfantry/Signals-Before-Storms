@@ -184,6 +184,77 @@ def bootstrap_ci(
     return float(np.quantile(vals, alpha / 2)), float(np.quantile(vals, 1.0 - alpha / 2))
 
 
+def paired_bootstrap(
+    a,
+    b,
+    stat=sharpe,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    mean_block: float | None = None,
+    seed: int = 42,
+) -> tuple[float, float]:
+    """Confidence interval for stat(a) - stat(b), resampling both books on the SAME dates.
+
+    Two overlapping marginal intervals do not mean two books are indistinguishable. That is a
+    statement about each book against zero, not about the gap between them, and reading it as the
+    latter is one of the most common errors in strategy comparison.
+
+    The books here hold the same assets on the same days, so they are strongly correlated and
+    their difference has far lower variance than either series alone. Pairing is what exploits
+    that: one index matrix, applied to both, so every replicate asks "on this resampled history,
+    which book won?" Resampling them independently throws the correlation away and reproduces the
+    marginal error at higher cost.
+
+    Block length is read off the DIFFERENCE series, since that is the series whose serial
+    dependence governs the statistic being bootstrapped.
+    """
+    sa, sb = pd.Series(a).dropna(), pd.Series(b).dropna()
+    if not sa.index.equals(sb.index):
+        raise ValueError(
+            f"paired_bootstrap needs a shared index; got {len(sa)} vs {len(sb)} rows. "
+            "Slice both books to the same dates first, or the pairing is meaningless."
+        )
+    x, y = sa.to_numpy(dtype=float), sb.to_numpy(dtype=float)
+    block = optimal_block_length(x - y) if mean_block is None else mean_block
+    idx = _stationary_indices(x.size, n_boot, block, np.random.default_rng(seed))
+    vals = np.array([stat(x[row]) - stat(y[row]) for row in idx])
+    vals = vals[np.isfinite(vals)]
+    if vals.size == 0:
+        return float("nan"), float("nan")
+    return float(np.quantile(vals, alpha / 2)), float(np.quantile(vals, 1.0 - alpha / 2))
+
+
+def subperiod_summary(
+    books: dict, splits, col: str = "ret_net", periods: int = 252, rf: float = 0.0
+) -> pd.DataFrame:
+    """Full scorecard per book per sub-period, so a result cannot hide inside one market episode.
+
+    `splits` is a sequence of (name, start, end) with inclusive bounds. Pick them from market
+    history rather than from the results: boundaries chosen after seeing which ones flatter the
+    strategy are just another searched parameter.
+
+    `days` is carried in the output on purpose. Sub-periods are short by construction, and a
+    Sharpe over sixty days is an anecdote however it is formatted.
+    """
+    rows = []
+    for name, start, end in splits:
+        for book_name, book in books.items():
+            window = book.loc[str(start) : str(end)]
+            if window.empty:
+                continue
+            rows.append(
+                pd.Series(
+                    {
+                        "period": name,
+                        "book": book_name,
+                        "days": len(window),
+                        **summary(window, col=col, periods=periods, rf=rf),
+                    }
+                )
+            )
+    return pd.DataFrame(rows).set_index(["period", "book"]).round(3)
+
+
 def label_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFrame:
     """Next-day behaviour of each regime label, measured at the lag the strategy trades.
 

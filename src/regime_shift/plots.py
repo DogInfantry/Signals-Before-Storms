@@ -355,6 +355,84 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
     return ax
 
 
+def regime_weight_heatmap(book: pd.DataFrame, names=None, ax=None):
+    """Mean portfolio weight per asset per regime: the stance map as one object.
+
+    The weight stack shows the same information as a time series, which is the right figure for
+    asking WHEN the book moved. This one answers WHAT each regime actually buys, and makes the
+    project's central problem legible at a glance: equity gets a small allocation in the calm
+    state and a smaller one everywhere else, so there is no state in which the book is positioned
+    to earn the returns the crisis label turns out to deliver.
+    """
+    wcols = [c for c in book.columns if c.startswith("w_")]
+    if not wcols or "regime" not in book.columns:
+        raise ValueError("book needs a regime column and at least one w_<asset> column")
+    grid = book.dropna(subset=["regime"]).groupby("regime")[wcols].mean()
+    shown = _names(int(grid.index.max()) + 1, names)
+
+    ax = ax or plt.subplots(figsize=(1.5 * len(wcols) + 3, 0.8 * len(grid) + 2))[1]
+    im = ax.imshow(grid.to_numpy(), cmap="Blues", vmin=0.0, vmax=1.0, aspect="auto")
+    ax.set_xticks(range(len(wcols)), [c[2:] for c in wcols])
+    ax.set_yticks(range(len(grid)), [f"{int(i)} {shown[int(i)]}" for i in grid.index])
+    for i in range(grid.shape[0]):
+        for j in range(grid.shape[1]):
+            v = grid.iat[i, j]
+            ax.text(
+                j, i, f"{v:.2f}", ha="center", va="center",
+                color="white" if v > 0.5 else "black",
+            )
+    ax.figure.colorbar(im, ax=ax, shrink=0.8, label="mean weight")
+    return ax
+
+
+def rolling_sharpe(books: dict, window: int = 252, col: str = "ret_net", rf: float = 0.0, ax=None):
+    """Trailing annualized Sharpe per book.
+
+    A full-sample Sharpe is one number standing in for seven years, and it cannot say whether a
+    ranking held throughout or was decided by one stretch. If the lines cross repeatedly, the
+    league table at the end of the run is an end-point artifact and should not be read as a
+    ranking at all.
+    """
+    ax = ax or plt.subplots(figsize=(12, 5))[1]
+    for name, book in books.items():
+        excess = book[col] - rf / 252.0
+        roll = (
+            excess.rolling(window).mean() / excess.rolling(window).std() * np.sqrt(252)
+        ).dropna()
+        ax.plot(roll.index, roll.to_numpy(), lw=1.2, label=name)
+    ax.axhline(0.0, color="black", lw=0.8, ls="--")
+    ax.set_ylabel(f"rolling {window}d Sharpe")
+    ax.legend(frameon=False, ncols=3, fontsize=8)
+    return ax
+
+
+def sensitivity_panel(table: pd.DataFrame, metric: str = "sharpe", axes=None):
+    """Small multiples of the parameter sweep: one panel per knob, shipped default marked.
+
+    Reads the tidy frame from backtest.sensitivity_sweep. Flat lines are the good outcome: they
+    say the conclusion does not depend on the knob. A steep line says the headline number is
+    really a statement about that setting, and should be reported as such.
+    """
+    knobs = list(dict.fromkeys(table["knob"]))
+    if axes is None:
+        _, axes = plt.subplots(1, len(knobs), figsize=(3.2 * len(knobs), 3.2), sharey=True)
+    axes = np.atleast_1d(axes)
+
+    for ax, knob in zip(axes, knobs, strict=True):
+        sub = table[table["knob"] == knob].sort_values("value")
+        ax.plot(sub["value"], sub[metric], marker="o", color="#37474f")
+        shipped = sub[sub["is_default"]]
+        if not shipped.empty:
+            ax.scatter(
+                shipped["value"], shipped[metric], s=110, facecolors="none",
+                edgecolors="#c62828", lw=2, zorder=3, label="shipped default",
+            )
+            ax.legend(frameon=False, fontsize=8)
+        ax.set_xlabel(knob)
+    axes[0].set_ylabel(metric)
+    return axes
+
+
 def transition_heatmap(matrix, names=None, ax=None):
     """Regime transition probabilities. The diagonal is the story: regimes are sticky."""
     p = np.asarray(matrix, dtype=float)
