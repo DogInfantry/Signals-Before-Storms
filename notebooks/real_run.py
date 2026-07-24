@@ -52,6 +52,7 @@ from regime_shift.plots import (
     rolling_sharpe,
     sensitivity_panel,
     sharpe_forest,
+    story_panel,
     transition_heatmap,
     weight_stack,
 )
@@ -184,6 +185,7 @@ print("\n=== paired Sharpe difference vs each static benchmark (95%, same resamp
 # bootstrapping raw returns against rf-adjusted point estimates silently answers a different
 # question and produces an interval that does not bracket its own point estimate.
 excess_books = {k: v["ret_net"] - rf / 252.0 for k, v in books.items()}
+paired_vs: dict[str, dict[str, tuple[float, float, float]]] = {}
 for bench in ("60_40", "equal_weight"):
     print(f"--- vs {bench} ---")
     for name in books:
@@ -192,6 +194,7 @@ for bench in ("60_40", "equal_weight"):
         d = sharpes[name] - sharpes[bench]
         lo, hi = paired_bootstrap(excess_books[name], excess_books[bench], n_boot=2000)
         verdict = "EXCLUDES 0" if lo > 0 or hi < 0 else "spans 0"
+        paired_vs.setdefault(bench, {})[name] = (d, lo, hi)
         print(f"  {name:20s} dSharpe={d:+6.3f}  CI=({lo:+6.3f}, {hi:+6.3f})  {verdict}")
 
 # Does the whole result live inside one market episode? Splits are named from market history, not
@@ -239,9 +242,21 @@ ax = weight_stack(books["hmm_conditional"], regimes)
 ax.set_title(f"{market.upper()} regime-switched weights, regime path in the ribbon above")
 save(ax, "weight_stack")
 
-ax = label_profile_bars(label_profile(regimes, master))
-ax.set_title(f"{market.upper()} volatility orders with the label, return does not")
-save(ax, "label_profile")
+prof = label_profile(regimes, master)
+save(label_profile_bars(prof), "label_profile")
+
+# The whole argument as one image: what the states predict, how much evidence is behind it,
+# whether any book beats its benchmark, and what the overlay does buy.
+fig = story_panel(
+    prof,
+    regimes,
+    master,
+    paired_vs["60_40"],
+    "60/40",
+    {k: float(summary(v, rf=rf)["max_drawdown"]) for k, v in books.items()},
+    market=market.upper(),
+)
+fig.savefig(out / f"{market}_story.png", dpi=140, bbox_inches="tight")
 
 # Effective sample size, made visual: the crisis label's whole reputation is one bar.
 ax = episode_bars(regimes, master)

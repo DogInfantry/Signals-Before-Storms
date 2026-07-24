@@ -14,8 +14,29 @@ import numpy as np
 import pandas as pd
 
 from regime_shift.regime import REGIME_NAMES_3, label_episodes
+from regime_shift.style import (
+    BAD,
+    GOOD,
+    INK,
+    INK_FAINT,
+    NEUTRAL,
+    REGIME_RAMP,
+    SERIES_A,
+    SERIES_B,
+    SURFACE,
+    bar_labels,
+    callout,
+    pct_axis,
+    subtitle,
+    use_house_style,
+)
 
-REGIME_COLORS = ("#2e7d32", "#f9a825", "#c62828")  # ascending risk: calm, stressed, crisis
+use_house_style()
+
+# Ascending risk, encoded as a lightness ramp rather than three arbitrary hues: the regimes are
+# ORDERED, so an ordered encoding both says so and survives colour blindness. See style.py for the
+# validator result that rejected the previous green/amber/red triad.
+REGIME_COLORS = REGIME_RAMP
 
 # Known stress windows, named from memory of the period rather than read off the data, so that
 # shading them is a genuine out-of-model check on the volatility features rather than a
@@ -234,23 +255,58 @@ def weight_stack(book: pd.DataFrame, regimes: pd.Series | None = None, ax=None):
 
 
 def label_profile_bars(profile: pd.DataFrame, names=None, ax=None):
-    """Annualized next-day return and volatility per regime label, side by side.
+    """Annualized next-day return and volatility per regime label, with the contradiction marked.
 
-    The central finding in one frame. Volatility rises monotonically with the label, exactly as
-    the vol ranking intends. Return rises with it too, and that is the wrong direction: a book
-    that de-risks as the label climbs is selling its best days. For the bet to pay, the return
-    bars would have to FALL as the risk label rises.
+    The central finding of the whole project, and the one figure that has to work without a
+    caption. Volatility rises with the label exactly as the ranking intends, so the model is doing
+    what it was asked. Return rises with it too, and that is the wrong direction.
+
+    The dashed guide is what a working risk signal would have to look like: return FALLING as risk
+    climbs. Drawing the expectation next to the measurement is the difference between a reader
+    seeing the finding and being told it.
     """
-    ax = ax or plt.subplots(figsize=(8, 4.5))[1]
+    ax = ax or plt.subplots(figsize=(9, 5.2))[1]
     shown = _names(len(profile), names)
     x = np.arange(len(profile))
+    ret = profile["eq_ann_ret"].to_numpy(dtype=float)
+    vol = profile["eq_ann_vol"].to_numpy(dtype=float)
 
-    ax.bar(x - 0.2, profile["eq_ann_ret"], 0.4, label="next-day ann return", color="#2e7d32")
-    ax.bar(x + 0.2, profile["eq_ann_vol"], 0.4, label="next-day ann vol", color="#c62828")
-    ax.axhline(0.0, color="black", lw=0.6)
-    ax.set_xticks(x, [f"{i} {n}" for i, n in enumerate(shown)])
-    ax.set_ylabel("annualized")
-    ax.legend(frameon=False)
+    b1 = ax.bar(x - 0.21, ret, 0.4, label="next-day return", color=SERIES_A, zorder=3)
+    b2 = ax.bar(x + 0.21, vol, 0.4, label="next-day volatility", color=SERIES_B, zorder=3)
+    bar_labels(ax, b1, dy=vol.max() * 0.015)
+    bar_labels(ax, b2, dy=vol.max() * 0.015)
+
+    # what a signal that actually predicted direction would look like: return falling with risk
+    guide = np.linspace(ret.max(), ret.min() * 0.35, len(x))
+    ax.plot(x - 0.21, guide, ls=(0, (4, 3)), lw=1.6, color=INK_FAINT, zorder=4)
+    # annotations sit in the empty band above the low bars and below the legend, and point at the
+    # marks from the side, so neither one lands on a value label
+    span = float(guide[0] - guide[-1])
+    ax.annotate(
+        "what a working risk signal\nwould look like",
+        xy=(x[0] + 0.55, guide[0] - 0.76 * span * (0.55 + 0.21) / max(len(x) - 1, 1)),
+        xytext=(x[0] + 0.15, vol.max() * 0.70),
+        fontsize=9,
+        color=INK_FAINT,
+        ha="center",
+        arrowprops={"arrowstyle": "->", "color": INK_FAINT, "lw": 1.1},
+    )
+    callout(
+        ax,
+        "measured: return RISES with risk",
+        xy=(x[-1] - 0.40, ret[-1] * 0.95),
+        xytext=(x[-1] - 0.85, vol.max() * 0.93),
+    )
+
+    ax.set_xticks(x, [f"{i}  {n}" for i, n in enumerate(shown)])
+    ax.set_ylabel("annualized, next day")
+    pct_axis(ax)
+    ax.set_ylim(0, vol.max() * 1.18)
+    ax.legend(loc="upper left", ncols=2)
+    subtitle(
+        ax,
+        "Volatility orders correctly. Return orders backwards, so de-risking sells the best days.",
+    )
     return ax
 
 
@@ -331,10 +387,14 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
         centres,
         rets,
         width=widths,
-        color=["#c62828" if v < 0 else "#2e7d32" for v in rets],
-        edgecolor="white",
+        color=[BAD if v < 0 else GOOD for v in rets],
+        edgecolor=SURFACE,  # a 2px surface gap, so adjacent episodes stay countable
+        linewidth=1.2,
+        zorder=3,
     )
-    ax.axhline(0.0, color="black", lw=0.8)
+    ax.axhline(0.0, color=INK, lw=0.9, zorder=4)
+    pct_axis(ax, decimals=0)
+    ax.grid(axis="x", visible=False)
     # Label only episodes wide enough to carry text. A three-day flicker and a sixty-day crisis
     # both get a bar, but only the second gets a date, otherwise the short ones overprint.
     floor = 0.04 * pos
@@ -348,9 +408,10 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
     )
     ax.set_ylabel("episode cumulative return")
     neg = sum(v < 0 for v in rets)
-    ax.set_title(
-        f"label {label}: {len(rets)} episodes over {int(eps['days'].sum())} days, "
-        f"{neg} negative (bar width = days)"
+    subtitle(
+        ax,
+        f"Crisis label: {len(rets)} episodes over {int(eps['days'].sum())} days, only {neg} "
+        f"negative. Bar width = duration.",
     )
     return ax
 
@@ -431,6 +492,78 @@ def sensitivity_panel(table: pd.DataFrame, metric: str = "sharpe", axes=None):
         ax.set_xlabel(knob)
     axes[0].set_ylabel(metric)
     return axes
+
+
+def paired_forest(paired: dict, bench: str, ax=None):
+    """Sharpe DIFFERENCE against one benchmark, with its paired bootstrap interval.
+
+    The correct object for a comparison, and a different question from the per-book intervals in
+    sharpe_forest. Those ask whether a book beats zero; this asks whether it beats the benchmark.
+    Zero is the only line that matters, so it is the only line drawn.
+    """
+    ax = ax or plt.subplots(figsize=(8, 0.5 * len(paired) + 1.6))[1]
+    order = sorted(paired, key=lambda k: paired[k][0])
+    y = np.arange(len(order))
+    diff = [paired[k][0] for k in order]
+    lo = [paired[k][1] for k in order]
+    hi = [paired[k][2] for k in order]
+    # an interval clearing zero is the only thing that would count as beating the benchmark
+    clears = [a > 0 or b < 0 for a, b in zip(lo, hi, strict=True)]
+
+    ax.hlines(y, lo, hi, color=INK_FAINT, lw=2.2, zorder=2)
+    ax.scatter(diff, y, s=46, zorder=3, color=[GOOD if c else NEUTRAL for c in clears])
+    ax.axvline(0.0, color=BAD, lw=1.3, ls="--", zorder=1)
+    ax.set_yticks(y, order)
+    ax.set_xlabel(f"Sharpe difference vs {bench}  (95% paired bootstrap)")
+    ax.grid(axis="y", visible=False)
+    subtitle(ax, "Every interval spans zero: no book separates from the benchmark.")
+    return ax
+
+
+def story_panel(
+    profile, labels, master, paired, bench: str, drawdowns: dict, market: str = "", fig=None
+):
+    """The whole argument as one figure: what the model found, and what it is worth.
+
+    Four panels in reading order. What the states predict (and fail to), how much evidence sits
+    behind that, whether any book actually beats its benchmark, and what the overlay does buy.
+    Built for the top of a README, where a reader gives a project about ten seconds.
+    """
+    fig = fig or plt.figure(figsize=(15.5, 9.6))
+    gs = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.20)
+
+    label_profile_bars(profile, ax=fig.add_subplot(gs[0, 0]))
+    episode_bars(labels, master, ax=fig.add_subplot(gs[0, 1]))
+    paired_forest(paired, bench, ax=fig.add_subplot(gs[1, 0]))
+
+    ax4 = fig.add_subplot(gs[1, 1])
+    dd = dict(sorted(drawdowns.items(), key=lambda kv: kv[1]))
+    names = list(dd)
+    bars = ax4.bar(
+        np.arange(len(names)),
+        [dd[n] for n in names],
+        0.62,
+        color=[GOOD if abs(dd[n]) < 0.10 else SERIES_B for n in names],
+        zorder=3,
+    )
+    bar_labels(ax4, bars, dy=0.004)
+    ax4.set_xticks(np.arange(len(names)), names, rotation=20, ha="right")
+    pct_axis(ax4)
+    ax4.set_ylabel("worst drawdown")
+    ax4.grid(axis="x", visible=False)
+    ax4.set_ylim(min(dd.values()) * 1.22, 0)  # headroom, else the deepest label clips off-axis
+    subtitle(ax4, "What it DOES buy: a fraction of the benchmark's worst loss.")
+
+    fig.suptitle(
+        f"{market} regime overlay: the model works, the bet does not".strip(),
+        fontsize=15,
+        weight="semibold",
+        color=INK,
+        x=0.008,
+        ha="left",
+        y=0.99,
+    )
+    return fig
 
 
 def transition_heatmap(matrix, names=None, ax=None):
