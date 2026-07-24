@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 _ANNUALIZE = 252**0.5  # daily -> annual vol scaling
-_RETURN_COLS = ("equity_ret", "bond_ret", "gold_ret")
+_RETURN_COLS = ("equity_ret", "bond_ret", "cash_ret", "gold_ret")
 
 
 def add_momentum(df: pd.DataFrame, ret_col: str, windows: list[int]) -> pd.DataFrame:
@@ -67,6 +67,10 @@ def build_features(master: pd.DataFrame, cfg, drawdown: bool = False) -> pd.Data
         feats["vix"] = master["vix"]
         feats["vix_chg"] = master["vix"].diff()
 
+    # Whatever is left after the asset returns and vix is macro. _RETURN_COLS must therefore
+    # name EVERY role in data._ASSET_ROLES: a role missing from it is silently promoted to a
+    # state variable, which is how India's cash_ret once gave that universe a 10th feature the
+    # US never saw and quietly broke the like-for-like comparison.
     macro_cols = [c for c in master.columns if c not in _RETURN_COLS and c != "vix"]
     for c in macro_cols:
         feats[c] = master[c]

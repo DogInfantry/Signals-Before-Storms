@@ -52,6 +52,9 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   `add_realized_vol` (rolling std * sqrt252), `build_features(master, cfg, drawdown=False)` ->
   `mom_{5,21,63,126}`, `vol_{5,21,63}`, `vix`, `vix_chg`, optional `dd_peak`, macro passthrough.
   All causal (right-aligned rolling). NO standardization here. Equity only.
+  **`_RETURN_COLS` must name EVERY role in `data._ASSET_ROLES`.** Anything not in it and not `vix`
+  is swept up as a macro passthrough, i.e. promoted to a state variable. `cash_ret` was missing
+  until 2026-07-24 and silently gave India a 10th feature; see landmine 4.
 - `src/regime_shift/regime.py`: `RegimeModel(engine="hmm"|"jump")`. `fit(X, rank_by, tiebreak)` ->
   canonical labels via `_canonical_order` (sorts raw states by within-state mean rank_by ascending;
   PADS to a full permutation and warns if the fit did not occupy every state). `decode` =
@@ -91,96 +94,149 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   Lopez de Prado PSR; benchmark arg is ANNUALIZED), `expected_max_sharpe(n_trials, trial_sr_std)`,
   `deflated_sharpe`, `optimal_block_length` (Politis-White 2004; ~2.9 days on real US returns),
   `bootstrap_ci` (Politis-Romano STATIONARY bootstrap, vectorized; `mean_block=None` reads it off
-  the data), `summary(book, col, periods, rf)`. **Pass `rf` whenever a cash-like asset exists** or
-  defensive books get a free Sharpe for holding cash.
+  the data), `label_profile(labels, master)` (next-day return/vol/Sharpe/VIX per label, THE central
+  diagnostic; lives here so the driver, the notebook and `plots.label_profile_bars` share one
+  implementation), `summary(book, col, periods, rf)`. **Pass `rf` whenever a cash-like asset
+  exists** or defensive books get a free Sharpe for holding cash.
 - `src/regime_shift/benchmarks.py`: all routed through `run_book`. `static_book(..., target,
-  rebalance="monthly"|"never")`, `equal_weight`, `sixty_forty` (renormalized over columns present,
-  so India = 100% equity), `vol_rule_regimes(returns, cfg, window, lookback, quantile)` -> causal
-  0/(n-1) labels, the no-HMM ablation. Feed it to `run_backtest` sliced to the HMM OOS index.
-- `src/regime_shift/plots.py`: `REGIME_COLORS`, `regime_overlay` (shades each run up to the NEXT
-  run's start, else a one-day flicker is a zero-width axvspan and renders as a white stripe),
-  `equity_drawdown(books)`, `transition_heatmap(P)`. All take/return an axis; caller saves.
+  rebalance="monthly"|"never")`, `equal_weight`, `sixty_forty_target(cols)` (resolves the 40% leg:
+  `bond_ret` if present, else `cash_ret`; call it to LABEL the book honestly), `sixty_forty`,
+  `vol_rule_regimes(returns, cfg, window, lookback, quantile)` -> causal 0/(n-1) labels, the no-HMM
+  ablation. Feed the ablation to `run_backtest` sliced to the HMM OOS index.
+- `src/regime_shift/plots.py`: `REGIME_COLORS`, `STRESS_SPANS` (COVID + 2022, named from memory not
+  read off the data, so shading them is a real out-of-model check). Ten helpers: `regime_overlay`
+  (shades each run up to the NEXT run's start, else a one-day flicker is a zero-width axvspan and
+  renders as a white stripe), `equity_drawdown(books)`, `transition_heatmap(P)`, `return_panel`
+  (R2: raw returns + log-count marginals), `feature_sanity` (R6: vol_21/vix with stress shaded),
+  `gross_vs_net` (C4 visual), `weight_stack` (regime ribbon ABOVE the stack so it never hides a
+  weight), `label_profile_bars`, `bic_curve`, `sharpe_forest`. All take/return an axis (or an array
+  of them); caller saves. `real_run.save()` handles either shape.
 - `src/regime_shift/narrate.py`: STUB. Optional LLM narration, report-only. Never implemented.
-- `tests/` (39 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
-  `test_features` 2, `test_regime` 5 (causal decode, canonical labels, transition, dwell, jump
+- `tests/` (40 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+  `test_features` 2 (the fixture carries ALL FOUR asset roles and asserts no `*_ret` reaches the
+  feature matrix), `test_regime` 5 (causal decode, canonical labels, transition, dwell, jump
   engine via importorskip), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 6 (1-day lag
   by flipping a future label, flat-then-entry, conditional moments + fallback, target_vol,
-  zero-turnover-is-free), `test_metrics` 9, `test_benchmarks` 5 (incl. cash sleeve), `test_data` 3.
-- `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [us|india]`.
-  Builds the master from cache, runs the walk-forward, scores 8 books, prints the
-  forward-return-by-label tables, the scorecard, and the deflation table, writes 3 figures to
+  zero-turnover-is-free), `test_metrics` 9, `test_benchmarks` 6 (incl. cash sleeve and the 60/40
+  cash-leg fallback), `test_data` 3.
+- `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
+  **defaulting to india**. Requests macro explicitly and PRINTS whether it landed (the module
+  silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
+  label tables, BOTH gross and net scorecards, and the deflation table; writes 10 figures to
   `results/`. matplotlib Agg, no display needed.
-- `notebooks/driver.ipynb`: 24 cells, executes clean with 3 embedded figures. Same pipeline plus
-  the narrative. Regenerate: `uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb
-  --kernel python3`.
-- `README.md`: leads with the negative result, both universes, why-it-loses, the failed rescues,
-  data quality, deflation rationale, attribution terms.
+- `notebooks/driver.ipynb`: 42 cells, India-primary (`MARKET = "india"` in the config cell),
+  executes clean with 10 embedded figures and a US robustness section at the end. Threads
+  `rf` into every `summary` call. Regenerate: `uv run papermill notebooks/driver.ipynb
+  notebooks/driver.ipynb --kernel python3`. Generator script lives in the session scratchpad, not
+  the repo; edit the notebook in place or regenerate from that script.
+- `README.md`: leads with the split result (volatility states confirmed on both universes; India
+  wins maxDD/Calmar, US loses outright), both scorecards gross and net with sortino and calmar,
+  why-it-loses, the failed rescues, the figure inventory, data quality, deflation rationale,
+  attribution terms.
 - Build plan: kept outside the repo in the local Claude Code plans dir, deliberately not
   fetchable from a clone. README + this file carry everything needed to resume.
 
 ## Current state
-- **Everything is committed and pushed. Working tree clean. CI green on main.**
-- 39 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
+- 40 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
-- Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**,
-  so the master currently has NO macro columns and degrades gracefully.
+- Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**
+  (re-probed 2026-07-24: ReadTimeout), so both entry points request macro, warn, and continue.
+  Every published number is macro-free and both entry points print `landed=NONE` to say so.
   US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
-- Figures in `results/` (gitignored): `{us,india}_{regime_overlay,equity_drawdown,transition_heatmap}.png`.
-- Phases 0-9 done plus three follow-up extensions. Only `narrate.py` remains a stub (optional).
+  Feature matrices are 9 columns on BOTH universes now (was 10 on India, see landmine 4).
+- 20 figures in `results/` (gitignored): `{india,us}_{returns,feature_sanity,label_profile,
+  weight_stack,gross_vs_net,sharpe_forest,bic_curve,regime_overlay,equity_drawdown,
+  transition_heatmap}.png`. The notebook's embedded copies are what a reader without the repo sees.
+- Phases 0-9 done, three follow-up extensions, plus the spec-adherence pass. Only `narrate.py`
+  remains a stub (optional).
 
-### Headline numbers (US, OOS 2016-07-05..2023-12-29, n=1886, net of 7.5bps, DSR at 7 trials)
+### India (PRIMARY, OOS 2016-07-22..2023-12-29, n=1814, Sharpe vs rf=3.79% that cash actually paid)
 ```
-vol_rule_ablation  sharpe 0.958  ann 0.098  maxDD -0.219  turn 3.61x  DSR 0.863  CI ( 0.238, 1.652)
-60_40              sharpe 0.690  ann 0.075  maxDD -0.276  turn 0.41x  DSR 0.643  CI (-0.023, 1.422)
-jump_regime        sharpe 0.682  ann 0.066  maxDD -0.251  turn 1.46x  DSR 0.636  CI (-0.092, 1.399)
-equal_weight       sharpe 0.650  ann 0.059  maxDD -0.230  turn 0.42x  DSR 0.602  CI (-0.086, 1.382)
-hmm_drawdown_feat  sharpe 0.590  ann 0.054  maxDD -0.280  turn 3.88x  DSR 0.538
-hmm_vol_targeted   sharpe 0.562  ann 0.050  maxDD -0.273  turn 4.10x  DSR 0.508
-hmm_conditional    sharpe 0.542  ann 0.049  maxDD -0.287  turn 4.19x  DSR 0.486  CI (-0.211, 1.263)
-hmm_unconditional  sharpe 0.535  ann 0.048  maxDD -0.274  turn 2.74x  DSR 0.478
+                    net   gross  sortino   maxDD  calmar   turn    DSR  CI
+hmm_drawdown_feat  0.877  0.896   1.291   -0.064  1.169   0.99x  0.805  ( 0.096, 1.605)
+vol_rule_ablation  0.848  0.863   1.244   -0.065  1.165   0.88x  0.783  ( 0.082, 1.589)
+jump_regime        0.829  0.833   1.204   -0.073  1.038   0.24x  0.767  ( 0.033, 1.590)
+hmm_conditional    0.824  0.841   1.211   -0.062  1.161   0.87x  0.764  ( 0.050, 1.558)
+hmm_vol_targeted   0.824  0.841   1.211   -0.062  1.161   0.87x  0.764  ( 0.050, 1.558)
+equal_weight       0.815  0.819   1.167   -0.152  0.625   0.41x  0.752  ( 0.070, 1.558)
+hmm_unconditional  0.748  0.758   1.097   -0.062  1.103   0.50x  0.697  ( 0.011, 1.469)
+60_40 (eq/cash)    0.604  0.607   0.827   -0.237  0.413   0.36x  0.552  (-0.155, 1.436)
 ```
-### India (primary, OOS 2016-07-22..2023-12-29, n=1814, Sharpe vs rf=3.79% that cash actually paid)
+### US (robustness, OOS 2016-07-05..2023-12-29, n=1886, rf=0, UNCHANGED by the 2026-07-24 fixes)
 ```
-vol_rule 0.848 | jump 0.839 (turnover 0.25x) | equal_weight 0.815 | drawdown 0.759 |
-hmm_unconditional 0.755 | hmm_conditional 0.744 = hmm_vol_targeted 0.744 | 60_40 (=100% eq) 0.594
+                    net   gross   maxDD  calmar   turn    DSR  CI
+vol_rule_ablation  0.958  0.984  -0.219  0.446   3.61x  0.863  ( 0.238, 1.652)
+60_40              0.690  0.693  -0.276  0.273   0.41x  0.643  (-0.023, 1.422)
+jump_regime        0.682  0.693  -0.251  0.262   1.46x  0.636  (-0.092, 1.399)
+equal_weight       0.650  0.653  -0.230  0.258   0.42x  0.602  (-0.086, 1.382)
+hmm_drawdown_feat  0.590  0.620  -0.280  0.191   3.88x  0.538  (-0.128, 1.343)
+hmm_vol_targeted   0.562  0.595  -0.273  0.182   4.10x  0.508  (-0.184, 1.266)
+hmm_conditional    0.542  0.575  -0.287  0.170   4.19x  0.486  (-0.211, 1.263)
+hmm_unconditional  0.535  0.556  -0.274  0.174   2.74x  0.478  (-0.168, 1.252)
 ```
-SAME ORDERING AS US. Only the vol rule has a bootstrap CI excluding zero.
+**THE ORDERINGS DIFFER. Do NOT restate "same ordering as US"; that claim was true only of the
+pre-fix contaminated India run and is now false.** On India the HMM books beat both benchmarks
+decisively on maxDD (-6.2% vs -15.2% vs -23.7%) and Calmar (1.161 vs 0.625 vs 0.413) while sitting
+mid-pack on Sharpe. On US they lose on every metric. Two of the three metrics the brief names
+favour the strategy on the graded universe. Every India CI except 60/40 excludes zero; on US only
+the vol rule does.
 
 ## THE CENTRAL FINDING (diagnosis complete, do not re-litigate without new evidence)
 HMM states here are VOLATILITY states, and volatility states carry no directional information.
 Evidence, all out-of-sample at the traded 1-day lag:
-- Next-day equity by vol-ranked label: L0 +10.9% (vol 8.7, VIX 13), L1 +14.7% (15.6, 19),
-  L2 +16.1% (32.2, 28). Vol ordering perfectly monotone; RETURN ordering monotone the WRONG WAY.
-  De-risking on the crisis label sells the best days: 2020 and 2022 rebounds are as violent as the
-  crashes that preceded them.
-- The modal label is Bear (841/1886 days) with equity Sharpe 0.96, a perfectly good regime, routed
-  by the stance map to min-variance. That, not Crisis, is where most of the damage is.
-- BIC falls monotonically (K=2 39821, 3 34354, 4 31349, 5 29458): a fat-tailed continuum being
-  fitted, not discrete states. No BIC support for K=3.
-- The 2-line vol-threshold ablation DOES separate direction: L0 +19.7% (Sharpe 1.39) vs L2 -9.6%
-  (Sharpe -0.16), only 48.9% label agreement with the HMM. It wins on every metric.
+- Next-day equity by vol-ranked label. US: L0 +10.9% (vol 8.7), L1 +14.7% (15.6), L2 +16.1%
+  (32.2). India: L0 +10.2% (11.2), L1 +15.0% (14.9), L2 +18.4% (31.7). Vol ordering perfectly
+  monotone on BOTH; RETURN ordering monotone the WRONG WAY on BOTH. De-risking on the crisis label
+  sells the best days: 2020 and 2022 rebounds are as violent as the crashes that preceded them.
+- The modal label is Bear (US 841/1886 days) with equity Sharpe 0.96, a perfectly good regime,
+  routed by the stance map to min-variance. That, not Crisis, is where most of the damage is.
+- The weight-stack figure shows equity pinned under 25% and mostly 10-20%. The book is not too
+  risky, it is far too de-risked, which is also why target_vol barely binds.
+- The 2-line vol-threshold ablation DOES separate direction on US: L0 +19.7% (Sharpe 1.39) vs L2
+  -9.6% (Sharpe -0.16), only 48.9% label agreement with the HMM.
+
+**BUT the picture is NOT uniformly negative, and two sub-claims were REVERSED on 2026-07-24 when
+the `cash_ret` contamination was fixed. Do not restore the old blanket wording:**
+- **BIC now SUPPORTS K=3 on India.** Marginal fit per added state, India: 2->3 6256, 3->4 **392**,
+  4->5 3125, a genuine elbow at three. US: 5467 / 3005 / 1891, steady decline, no elbow. The old
+  "no BIC support for K=3" is a US-only fact. India BIC {2:38438, 3:32182, 4:31790, 5:28665}.
+- **The Jump Model's India crisis label is NOT directional. THIS LEAD IS CLOSED, DO NOT REOPEN.**
+  It reads -17.1% ann over 94 days, which looks like the only negative-return state in the project.
+  It is **2 EPISODES**: 2020-03-06..2020-06-12 (64d, -10.70%) and 2018-10-11..2018-11-26 (30d,
+  **+4.41%**). Ex-COVID the label runs **+30.17%** ann over 40 days, the same broken ordering as
+  everything else. n_effective = 1, not 94. Worse, `pd.crosstab(hmm, jump)` shows all 94 of those
+  days sit INSIDE the HMM's own crisis label, so the jump partition is a strict SUBSET, not a
+  different state space. "Two estimators, same broken ordering" holds on BOTH universes after all.
+  This was briefly written up as a live lead on 2026-07-24 and retracted the same day by an episode
+  count; the retraction is documented in the README rather than quietly dropped.
+- **On India the HMM wins on maxDD and Calmar** (see the headline block). The brief names Sharpe,
+  max drawdown AND Calmar; two of the three favour the strategy on the graded universe.
 
 **FOUR RESCUE ATTEMPTS, ALL FAILED, ALL THE SAME WAY:**
 1. **Re-rank by return** (`rank_col="mom_21", rank_sign=-1`): 0.542 -> 0.620, still under 60/40,
    and label 2 came out IDENTICAL (same 379 days, same +16.1%). Reordering cannot add information
    the state space does not contain.
-2. **Jump Model** (the flagship): does exactly what it advertises. Dwell 27d -> 194d, turnover
-   4.19x -> 1.46x, Sharpe -> 0.682. Agrees with the HMM only 58.6% of the time, so it is a
-   genuinely different partition, and its crisis label STILL has the highest forward return
-   (+20.0%, 106 days, vol 46.6%). Two unrelated estimators, low agreement, same broken ordering
-   => the fault is the STATE SPACE, not the HMM.
-3. **Volatility targeting** (`target_vol=0.10`): 0.542 -> 0.562 US, bit-identical on India. It
-   barely binds, because min-var already pins the book at 9.6% (US) / 4.1% (India) vol. The
-   strategy is not taking too much risk, it is taking too little and forfeiting return.
+2. **Jump Model** (the flagship): does exactly what it advertises. US dwell 27d -> 194d, turnover
+   4.19x -> 1.46x, Sharpe -> 0.682. Agrees with the HMM 58.6% (US) / 57.5% (India), so it is a
+   genuinely different partition. On US its crisis label STILL has the highest forward return
+   (+20.0%, 106 days), which is what points at the STATE SPACE rather than the HMM. On India it
+   does NOT: -17.1%, 94 days (see the reversal note above). Scores 0.829 on India regardless.
+3. **Volatility targeting** (`target_vol=0.10`): 0.542 -> 0.562 US, bit-identical on India (0.824
+   either way). It barely binds, because min-var already pins the book at 9.6% (US) / 3.9% (India)
+   vol. The strategy is not taking too much risk, it is taking too little and forfeiting return.
 4. **Drawdown feature** (`build_features(drawdown=True)`): PRE-REGISTERED criterion was "crisis
-   label forward return must turn negative". It went +16.1% -> +17.6%. FAILED on its own terms.
-   Sharpe drifted to 0.590; explicitly NOT counted as a win. Do not re-litigate via the Sharpe.
+   label forward return must turn negative". US +16.1% -> +17.6%; India +18.4% -> **+29.7%**.
+   FAILED on its own terms on BOTH universes. It now TOPS the India Sharpe table at 0.877, and is
+   still explicitly NOT counted as a win and NOT adopted as the default. Do not re-litigate via
+   the Sharpe: that is exactly the situation the pre-registration exists to handle.
 
-This IS the report's flagship result. A rigorous negative with a diagnosis beats a tuned positive.
-Config default deliberately stays `rank_col="vol_21"`; do NOT quietly switch to the variant that
-scored 0.08 higher, that is precisely the selection bias the DSR exists to punish.
+A rigorous negative with a diagnosis beats a tuned positive, and the India drawdown/Calmar win is
+reported as what it is: a real effect on two of the three named metrics, on one universe only.
+Config default deliberately stays `rank_col="vol_21"` with `drawdown=False`; do NOT quietly switch
+to a variant that scored higher, that is precisely the selection bias the DSR exists to punish.
 
-## DATA-QUALITY LANDMINES (both fixed, read before trusting any number)
+## DATA-QUALITY LANDMINES (all fixed, read before trusting any number)
 1. **GOLDBEES.NS 100x round trip.** Log return -4.6065 on 2019-12-19 and +4.6052 on 2019-12-23.
    Two bad prints in 2193 rows inflated gold's return std from 0.011 to 0.139 and poisoned every
    Indian covariance, regime fit and Sharpe (India "ran" at 44.5% vol). `drop_return_outliers` now
@@ -195,35 +251,63 @@ scored 0.08 higher, that is precisely the selection bias the DSR exists to punis
 3. **rf matters once cash exists.** `metrics.summary(rf=)` and `real_run.py` derives rf from
    `cash_ret`. An earlier README reported India as an HMM WIN (1.215 vs 1.185); that was an
    artifact of having no cash sleeve AND scoring against rf=0. Do not resurrect those numbers.
+4. **`cash_ret` was silently a FEATURE on India until 2026-07-24.** `features._RETURN_COLS` listed
+   only equity/bond/gold, and anything not in that tuple and not `vix` is swept up as a macro
+   passthrough. India therefore fitted 10 features where the US fitted 9. Not a leak (`cash_ret[t]`
+   is known at the close of t) but it broke the like-for-like claim AND depressed every Indian HMM
+   score: fixing it moved hmm_conditional 0.744 -> 0.824 and hmm_drawdown 0.759 -> 0.877. Any new
+   asset role added to `data._ASSET_ROLES` MUST also be added to `_RETURN_COLS`;
+   `tests/test_features.py` now asserts no `*_ret` column can reach the feature matrix.
+5. **India's 60/40 was 100% NIFTY until 2026-07-24.** `SIXTY_FORTY` names `bond_ret`, India has
+   none, and `_fixed_vector` renormalized [0.6,0,0] to [1,0,0]. The strategy was being judged
+   against a pure-equity book at 17.0% vol and -38.4% maxDD. `benchmarks.sixty_forty_target` now
+   routes the 40% to `cash_ret` when there is no bond sleeve (10.0% vol, -23.7% maxDD). This is a
+   benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight. Clean stopping point.** Repo public, CI green, tree clean, all loose ends
-closed. See Next Steps for options if work resumes.
+**Nothing in flight. Clean stopping point.** Spec-adherence pass done 2026-07-24: gross-vs-net
+reporting, real India 60/40, India-primary notebook, 7 new figures, `cash_ret` fix. 40 tests green,
+ruff clean. NOT yet committed or pushed at the time this was written; check `git status`.
 
 ## Next steps
-1. **Nothing is required.** The project is complete and internally consistent. Stopping here is a
-   legitimate choice; the deliverable is a rigorous negative result with a diagnosis.
-2. If more modelling is wanted, the ONLY lead the evidence supports is a **directional state
-   variable**: credit spreads (FRED `BAA10Y`, already in the config macro list, but FRED is
-   blocked on this network so it needs a different network or a vendor), market breadth, earnings
-   revisions, or positioning. Realized vol and VIX are symmetric in sign and provably cannot
-   supply direction. NOTE the DSR budget is nearly spent: at 7 trials any new variant needs a
-   materially larger raw Sharpe just to hold its ground.
-3. `narrate.py` is still a stub, explicitly optional, lowest research value of anything left. It
-   demos well if the report needs a flourish.
-4. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears.
-5. Nice-to-have polish: `uv run pre-commit install` (configured but NOT installed, so nbstripout
-   never runs and the committed notebook keeps its outputs, which is arguably what you want for a
-   portfolio repo).
+1. **Commit and push** if the working tree is still dirty. Nothing else is required.
+2. **Phase 10, effective sample size, is the agreed next phase and costs ZERO DSR trials.** The
+   repo reports n=1814 days everywhere, but its regime claims rest on 14 episodes (HMM crisis) and
+   2 (jump crisis), and every CI uses a block length `optimal_block_length` reads off RETURN
+   autocorrelation (~2.3d) when regimes persist ~25d. So every regime-level interval is far too
+   tight. Deliverables: `regime.label_episodes`, `metrics.episode_profile` (with
+   `ann_ret_ex_largest`), dual CIs via the existing `bootstrap_ci(mean_block=)`, and a
+   `plots.episode_bars` figure. This is the analysis that caught the retraction above.
+3. Beyond that the evidence still points at a **directional state variable**: credit spreads
+   (FRED `BAA10Y`, now genuinely requested by both entry points, but FRED is blocked on this
+   network so it needs a different network or a vendor), market breadth, earnings revisions or
+   positioning. Realized vol and VIX are symmetric in sign and provably cannot supply direction.
+   NOTE the DSR budget is nearly spent: at 7 trials any new variant needs a materially larger raw
+   Sharpe just to hold its ground.
+4. **CONSIDERED AND DECLINED on 2026-07-24. Not novel, do not propose as new.** Both were weighed
+   against the DSR budget (7 trials spent) and the user chose rigor-only:
+   - *Stance-map test*: if states predict variance and not direction, the correct use is SIZING,
+     not DE-RISKING. Replace the discrete Bull/Bear/Crisis map with inverse-variance scaling of a
+     fixed strategic portfolio. This is the strongest remaining hypothesis, because India label 1
+     carries the highest Sharpe of any label (1.01, 731 days) and is routed to min-var. Would be
+     trial 8.
+   - *Signed-feature test*: semivariance ratio and rolling realized skew, which unlike volatility
+     are asymmetric in sign, so they can in principle tell a crash from a rebound. Derivable from
+     cached data, needs no FRED. Would be trial 9.
+5. `narrate.py` is still a stub, explicitly optional, lowest research value of anything left.
+6. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears.
+7. Nice-to-have polish: `uv run pre-commit install` (configured but NOT installed, so nbstripout
+   never runs and the committed notebook keeps its outputs, which is what you want for a portfolio
+   repo, since `results/` is gitignored and the embedded figures are all a reader gets).
 
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 39 tests
+uv run pytest -q              # 40 tests
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
-uv run python notebooks/real_run.py us             # full run + figures
-uv run python notebooks/real_run.py india
+uv run python notebooks/real_run.py india          # PRIMARY: full run + 10 figures
+uv run python notebooks/real_run.py us             # robustness; must stay bit-identical
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 ```
 

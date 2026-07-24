@@ -1,7 +1,14 @@
 """Real-data end-to-end run: cached yfinance master -> features -> walk-forward -> books.
 
-Writes the three figures to results/ and prints the scorecard. US universe by default (India has
-no bond ticker resolved yet, so it runs equity+gold only).
+India is the primary universe and the default: NIFTY equity, an overnight cash fund as the
+defensive sleeve, and gold. There is deliberately no Indian bond sleeve, because no usable
+duration ETF exists on Yahoo for this window (every candidate was measured before being
+rejected; see README). US runs the same pipeline as an out-of-sample robustness check.
+
+Prints the scorecard both gross and net of costs, the forward-return-by-label diagnostic and
+the deflation table, then writes every figure to results/.
+
+    uv run python notebooks/real_run.py [india|us]
 """
 
 import pathlib
@@ -16,26 +23,64 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from regime_shift.backtest import run_backtest
-from regime_shift.benchmarks import equal_weight, sixty_forty, vol_rule_regimes
+from regime_shift.backtest import asset_cols, run_backtest
+from regime_shift.benchmarks import equal_weight, sixty_forty, sixty_forty_target, vol_rule_regimes
 from regime_shift.config import load_config
 from regime_shift.data import build_master
 from regime_shift.features import build_features
-from regime_shift.metrics import bootstrap_ci, deflated_sharpe, optimal_block_length, summary
-from regime_shift.plots import equity_drawdown, regime_overlay, transition_heatmap
-from regime_shift.regime import RegimeModel, dwell_times
+from regime_shift.metrics import (
+    bootstrap_ci,
+    deflated_sharpe,
+    label_profile,
+    optimal_block_length,
+    sharpe,
+    summary,
+)
+from regime_shift.plots import (
+    bic_curve,
+    equity_drawdown,
+    feature_sanity,
+    gross_vs_net,
+    label_profile_bars,
+    regime_overlay,
+    return_panel,
+    sharpe_forest,
+    transition_heatmap,
+    weight_stack,
+)
+from regime_shift.regime import RegimeModel, bic_sweep, dwell_times
 from regime_shift.walkforward import run_walk_forward
 
 warnings.filterwarnings("ignore")
-market = sys.argv[1] if len(sys.argv) > 1 else "us"
+market = sys.argv[1] if len(sys.argv) > 1 else "india"
 out = pathlib.Path("results")
 out.mkdir(exist_ok=True)
 
+
+def save(axes, name: str) -> None:
+    """Save whatever the plot helpers hand back: a single axis, or an array of them."""
+    ax = np.atleast_1d(np.asarray(axes, dtype=object)).ravel()[0]
+    ax.figure.savefig(out / f"{market}_{name}.png", dpi=140, bbox_inches="tight")
+
+
 cfg = load_config()
-master = build_master(cfg.universes[market], cfg.dates["start"], cfg.dates["end"])
+# Macro is requested explicitly. Where FRED is reachable these become real state variables;
+# where it is blocked build_master warns and continues, and the run is macro-free. Passing the
+# list is what makes the claim checkable either way.
+master = build_master(
+    cfg.universes[market], cfg.dates["start"], cfg.dates["end"], cfg.macro_fred_series
+)
 feats = build_features(master, cfg)
 print(f"[{market}] master={master.shape} cols={list(master.columns)}")
 print(f"[{market}] features={feats.shape} cols={list(feats.columns)}")
+
+# build_master warns and continues when FRED is unreachable, but this module silences warnings,
+# so say it out loud instead. A reader has to know whether the published numbers saw macro.
+landed = [s for s in cfg.macro_fred_series if s in master.columns]
+print(
+    f"[{market}] macro requested={cfg.macro_fred_series} landed={landed or 'NONE'}"
+    + ("" if landed else "  <- FRED unreachable, these results are macro-free")
+)
 
 regimes = run_walk_forward(feats, cfg)
 oos = regimes.index
@@ -50,6 +95,10 @@ books = {
     "60_40": sixty_forty(master, oos, cfg),
     "equal_weight": equal_weight(master, oos, cfg),
 }
+# Say which asset actually fills the 40%: on India it is cash, not duration, and a reader
+# comparing drawdowns deserves to know that without reading the source.
+leg = next(k for k in sixty_forty_target(asset_cols(master)) if k != "equity_ret")
+print(f"[{market}] 60/40 defensive leg = {leg}")
 
 # Constant risk budget instead of a directional bet: the honest response to states that
 # predict variance rather than direction.
@@ -68,81 +117,100 @@ try:
 except ImportError as exc:
     print(f"[{market}] jump engine skipped: {exc}")
 
-
-def label_profile(labels):
-    """Next-day behaviour of each label, measured at the lag the strategy actually trades."""
-    fwd = np.expm1(master.shift(-1)).loc[labels.index]
-    rows = []
-    for label, grp in fwd.groupby(labels):
-        r = grp["equity_ret"].dropna()
-        rows.append(
-            {
-                "label": label,
-                "days": len(r),
-                "eq_ann_ret": (1 + r).prod() ** (252 / len(r)) - 1,
-                "eq_ann_vol": r.std(ddof=1) * np.sqrt(252),
-                "eq_sharpe": r.mean() / r.std(ddof=1) * np.sqrt(252),
-                "vix_mean": master.loc[grp.index, "vix"].mean(),
-            }
-        )
-    return pd.DataFrame(rows).set_index("label").round(3)
-
-
 for name, labels in label_sets.items():
     print(f"\n=== {name}: next-day equity by label (does the state predict direction?) ===")
-    print(label_profile(labels).to_string())
+    print(label_profile(labels, master).to_string())
     print("  mean dwell:", {k: round(v, 1) for k, v in dwell_times(labels.to_numpy()).items()})
 if "jump" in label_sets:
     print("  hmm/jump label agreement:", round(float((label_sets["jump"] == regimes).mean()), 3))
+
 # With a cash sleeve in the universe, scoring against rf=0 would hand every defensive book a
 # free Sharpe boost for simply holding cash. Charge the cash rate the book could have earned.
 rf = 0.0
 if "cash_ret" in master.columns:
     cash = np.expm1(master["cash_ret"].loc[oos])
     rf = float((1 + cash).prod() ** (252 / len(cash)) - 1)
-    print(f"[{market}] cash sleeve present, scoring Sharpe against rf={rf:.4f}")
+    print(f"\n[{market}] cash sleeve present, scoring Sharpe against rf={rf:.4f}")
 
-table = pd.DataFrame({k: summary(v, rf=rf) for k, v in books.items()}).T
-print("\n=== net of costs ===")
-print(table.round(3).to_string())
+# Both sides of the cost question, as the brief asks. The gap between the two tables is what
+# the churn actually costs, and reporting net alone hides whether the shortfall is stance or
+# trading.
+for col, header in (("ret_gross", "gross of costs"), ("ret_net", f"net of {cfg.costs_bps} bps")):
+    table = pd.DataFrame({k: summary(v, col=col, rf=rf) for k, v in books.items()}).T
+    print(f"\n=== {header} ===")
+    print(table.round(3).to_string())
 
-# Honest trial count: rank_vol, rank_return, conditional/unconditional moments, vol rule,
-# jump engine, volatility targeting, drawdown feature. Searching more lowers every DSR, which
-# is the point of reporting it.
+# Honest trial count: rank_vol, rank_return, conditional/unconditional moments, vol rule, jump
+# engine, volatility targeting, drawdown feature. The cash-leg 60/40 and the cash_ret feature
+# fix are a benchmark and a bug fix, not searched variants, so neither moves this count.
 TRIALS = 7
 print(f"\n=== deflation, all books, {TRIALS} trials, sr spread 0.4 (excess of rf) ===")
+sharpes, cis = {}, {}
 for name, book in books.items():
     excess = book["ret_net"] - rf / 252.0
-    lo, hi = bootstrap_ci(excess, n_boot=2000)
+    sharpes[name] = sharpe(excess)
+    cis[name] = bootstrap_ci(excess, n_boot=2000)
     print(
         f"{name:20s} block={optimal_block_length(excess):5.1f}d  "
-        f"CI=({lo:6.3f}, {hi:6.3f})  DSR={deflated_sharpe(excess, TRIALS, 0.4):.3f}"
+        f"CI=({cis[name][0]:6.3f}, {cis[name][1]:6.3f})  "
+        f"DSR={deflated_sharpe(excess, TRIALS, 0.4):.3f}"
     )
 
-# descriptive full-sample fit, for the overlay and the transition matrix only
-scaled = StandardScaler().fit_transform(feats.to_numpy(dtype=float))
-model = RegimeModel(
-    n_states=cfg.hmm.n_states,
-    covariance_type=cfg.hmm.covariance_type,
-    n_iter=cfg.hmm.n_iter,
-    tol=cfg.hmm.tol,
-    random_state=cfg.seed,
-).fit(scaled, rank_by=feats["vol_21"].to_numpy())
+# --- figures -------------------------------------------------------------------------------
+# Look at the data before anything clever happens to it, and confirm the volatility feature
+# spikes where everyone already knows it should.
+save(return_panel(master), "returns")
+save(feature_sanity(feats), "feature_sanity")
 
 level = np.exp(master["equity_ret"].cumsum())
 ax = regime_overlay(level.loc[oos] / level.loc[oos].iloc[0], regimes)
 ax.set_title(f"{market.upper()} equity, walk-forward out-of-sample regimes")
-ax.figure.savefig(out / f"{market}_regime_overlay.png", dpi=140, bbox_inches="tight")
+save(ax, "regime_overlay")
 
 axes = equity_drawdown(books)
-axes[0].set_title(f"{market.upper()} strategy vs benchmarks, net of {cfg.costs_bps} bps")
-axes[0].figure.savefig(out / f"{market}_equity_drawdown.png", dpi=140, bbox_inches="tight")
+axes[0].set_title(f"{market.upper()} every book, net of {cfg.costs_bps} bps")
+save(axes, "equity_drawdown")
+
+ax = gross_vs_net(books["hmm_conditional"])
+ax.set_title(f"{market.upper()} HMM strategy, gross vs net of {cfg.costs_bps} bps")
+save(ax, "gross_vs_net")
+
+ax = weight_stack(books["hmm_conditional"], regimes)
+ax.set_title(f"{market.upper()} regime-switched weights, regime path in the ribbon above")
+save(ax, "weight_stack")
+
+ax = label_profile_bars(label_profile(regimes, master))
+ax.set_title(f"{market.upper()} volatility orders with the label, return does not")
+save(ax, "label_profile")
+
+ax = sharpe_forest(sharpes, cis)
+ax.set_title(f"{market.upper()} Sharpe with 95% bootstrap intervals")
+save(ax, "sharpe_forest")
+
+# Descriptive full-sample fit. The overlay above is the honest walk-forward path; the
+# transition matrix and the BIC sweep are model diagnostics and feed no trading decision.
+scaled = StandardScaler().fit_transform(feats.to_numpy(dtype=float))
+hmm_kwargs = {
+    "covariance_type": cfg.hmm.covariance_type,
+    "n_iter": cfg.hmm.n_iter,
+    "tol": cfg.hmm.tol,
+    "random_state": cfg.seed,
+}
+model = RegimeModel(n_states=cfg.hmm.n_states, **hmm_kwargs).fit(
+    scaled, rank_by=feats["vol_21"].to_numpy()
+)
 
 ax = transition_heatmap(model.transition_matrix())
 ax.set_title(f"{market.upper()} regime transitions (full-sample fit)")
-ax.figure.savefig(out / f"{market}_transition_heatmap.png", dpi=140, bbox_inches="tight")
+save(ax, "transition_heatmap")
+
+sweep = bic_sweep(scaled, **hmm_kwargs)
+ax = bic_curve(sweep)
+ax.set_title(f"{market.upper()} BIC by state count: no elbow, no support for K=3")
+save(ax, "bic_curve")
 plt.close("all")
 
 print(f"\nfigures -> {out.resolve()}")
+print("BIC sweep:", {k: round(v) for k, v in sweep.items()})
 print("transition matrix (rows=from):")
 print(np.round(model.transition_matrix(), 3))

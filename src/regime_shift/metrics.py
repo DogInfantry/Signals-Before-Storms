@@ -182,6 +182,37 @@ def bootstrap_ci(
     return float(np.quantile(vals, alpha / 2)), float(np.quantile(vals, 1.0 - alpha / 2))
 
 
+def label_profile(labels, master: pd.DataFrame, periods: int = 252) -> pd.DataFrame:
+    """Next-day behaviour of each regime label, measured at the lag the strategy trades.
+
+    The label is known at the close of t and earns t+1's return, so grouping t+1's return by
+    the label at t is the only honest way to ask whether a state predicts anything at all.
+
+    This is the project's central diagnostic, not a nicety. If annualized volatility orders
+    with the label while annualized RETURN does not, the states are volatility states, and no
+    directional bet placed on them can pay however the weights are chosen.
+    """
+    labels = pd.Series(labels).dropna().astype(int)
+    fwd = np.expm1(master.shift(-1)).loc[labels.index]
+    rows = []
+    for label, grp in fwd.groupby(labels):
+        r = grp["equity_ret"].dropna()
+        if r.empty:
+            continue
+        sd = r.std(ddof=1)
+        row = {
+            "label": int(label),
+            "days": int(r.size),
+            "eq_ann_ret": float((1.0 + r).prod() ** (periods / r.size) - 1.0),
+            "eq_ann_vol": float(sd * np.sqrt(periods)),
+            "eq_sharpe": float(r.mean() / sd * np.sqrt(periods)) if sd > 0 else float("nan"),
+        }
+        if "vix" in master.columns:
+            row["vix_mean"] = float(master.loc[grp.index, "vix"].mean())
+        rows.append(row)
+    return pd.DataFrame(rows).set_index("label").round(3)
+
+
 def summary(book, col: str = "ret_net", periods: int = 252, rf: float = 0.0) -> pd.Series:
     """One-line scorecard. Accepts a backtest book (reads `col`) or a bare return Series.
 

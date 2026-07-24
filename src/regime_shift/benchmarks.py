@@ -21,8 +21,9 @@ SIXTY_FORTY = {"equity_ret": 0.6, "bond_ret": 0.4}
 def _fixed_vector(cols: list[str], target: dict[str, float] | None) -> np.ndarray:
     """Target weights over the columns that actually exist, renormalized to be fully invested.
 
-    India has no bond sleeve yet, so 60/40 there collapses to 100% equity rather than silently
-    holding 60% and 40% cash.
+    Renormalizing rather than leaving the missing leg idle keeps every benchmark fully invested,
+    so none of them earns a free defensive edge from an accidental cash bucket. Callers that
+    care WHICH leg is missing resolve that first: see sixty_forty_target.
     """
     if target is None:
         return np.full(len(cols), 1.0 / len(cols))
@@ -62,9 +63,24 @@ def equal_weight(returns: pd.DataFrame, dates, cfg, **kwargs) -> pd.DataFrame:
     return static_book(returns, dates, cfg, target=None, **kwargs)
 
 
+def sixty_forty_target(cols: list[str]) -> dict[str, float]:
+    """Resolve the 40% defensive leg: the bond sleeve where one exists, else cash.
+
+    India has no usable duration ETF on Yahoo for this window, so without this fallback the
+    target [0.6, 0, 0] renormalizes to 100% equity and the book labelled 60/40 is really a pure
+    NIFTY buy-and-hold carrying four times the volatility. Judging a defensive strategy against
+    that is not the comparison the brief asks for. An overnight cash fund is a weaker
+    diversifier than duration, which is exactly why the caller should say which leg it got.
+    """
+    if "bond_ret" not in cols and "cash_ret" in cols:
+        return {"equity_ret": 0.6, "cash_ret": 0.4}
+    return SIXTY_FORTY
+
+
 def sixty_forty(returns: pd.DataFrame, dates, cfg, **kwargs) -> pd.DataFrame:
-    """The classic 60% equity / 40% bond book."""
-    return static_book(returns, dates, cfg, target=SIXTY_FORTY, **kwargs)
+    """The classic 60% equity / 40% defensive book. See sixty_forty_target for the 40% leg."""
+    target = sixty_forty_target(asset_cols(returns))
+    return static_book(returns, dates, cfg, target=target, **kwargs)
 
 
 def vol_rule_regimes(

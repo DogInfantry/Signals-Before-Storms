@@ -47,9 +47,33 @@ def test_sixty_forty_renormalizes_when_the_bond_sleeve_is_missing():
     assert abs(row["w_bond"] - 0.4) < 1e-12
     assert row["w_gold"] == 0.0
 
-    india = rets[["equity_ret", "gold_ret"]]  # no bond ticker resolved yet
+    # neither a bond nor a cash sleeve: nothing can fill the defensive leg, so renormalize
+    # rather than sit 40% idle
+    stripped = rets[["equity_ret", "gold_ret"]]
+    row = sixty_forty(stripped, stripped.index, cfg).iloc[1]
+    assert abs(row["w_equity"] - 1.0) < 1e-12
+
+
+def test_sixty_forty_falls_back_to_cash_when_there_is_no_bond_sleeve():
+    """India's defensive leg is an overnight fund, not duration. Without the fallback the book
+    labelled 60/40 is really 100% NIFTY, and the strategy gets judged against a pure equity
+    benchmark carrying four times its volatility."""
+    cfg = load_config()
+    rng = np.random.default_rng(2)
+    india = _log_returns()[["equity_ret", "gold_ret"]].copy()
+    india["cash_ret"] = rng.normal(0.00015, 0.0002, _N)
+
     row = sixty_forty(india, india.index, cfg).iloc[1]
-    assert abs(row["w_equity"] - 1.0) < 1e-12  # renormalized, not 60% invested and 40% idle
+    assert abs(row["w_equity"] - 0.6) < 1e-12
+    assert abs(row["w_cash"] - 0.4) < 1e-12
+    assert row["w_gold"] == 0.0
+
+    # a real bond sleeve still wins the leg when both are present
+    both = _log_returns()
+    both["cash_ret"] = rng.normal(0.00015, 0.0002, _N)
+    row = sixty_forty(both, both.index, cfg).iloc[1]
+    assert abs(row["w_bond"] - 0.4) < 1e-12
+    assert row["w_cash"] == 0.0
 
 
 def test_cash_sleeve_is_allocated_and_absorbs_the_crisis_stance():

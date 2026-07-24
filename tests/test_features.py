@@ -16,13 +16,19 @@ from regime_shift.features import build_features
 
 
 def _synthetic_master(n: int = 400, seed: int = 0) -> pd.DataFrame:
-    """A build_master-shaped frame: log-returns, VIX level, one macro column."""
+    """A build_master-shaped frame: log-returns, VIX level, one macro column.
+
+    Carries BOTH bond_ret and cash_ret so every role in data._ASSET_ROLES is represented. A
+    role the feature builder forgets to exclude is silently promoted to a state variable, and
+    only a fixture holding all four roles can catch that.
+    """
     rng = np.random.default_rng(seed)
     idx = pd.bdate_range("2015-01-02", periods=n)
     return pd.DataFrame(
         {
             "equity_ret": rng.normal(0, 0.01, n),
             "bond_ret": rng.normal(0, 0.005, n),
+            "cash_ret": rng.normal(0.0002, 0.0001, n),
             "gold_ret": rng.normal(0, 0.008, n),
             "vix": 15 + np.abs(rng.normal(0, 3, n)),
             "NFCI": rng.normal(0, 1, n),
@@ -54,6 +60,12 @@ def test_feature_columns_and_no_nan():
         + ["vix", "vix_chg", "NFCI"]
     )
     assert list(feats.columns) == expected
+    # No raw asset return survives as a state variable. cash_ret is the one that actually got
+    # through once: it is not in the macro list, not an equity feature, and India is the only
+    # universe carrying it, so it gave that universe a feature the US never saw.
+    assert not any(c.endswith("_ret") for c in feats.columns), (
+        f"raw asset returns leaked into the feature matrix: {list(feats.columns)}"
+    )
     assert not feats.isna().any().any(), "dropna should leave a fully dense matrix"
     # longest window is the binding constraint; rolling(w) leaves w-1 leading NaNs
     assert len(feats) == 400 - (max(cfg.features["momentum_windows"]) - 1)
