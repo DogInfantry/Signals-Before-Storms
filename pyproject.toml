@@ -24,6 +24,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Just the second regime engine. `extra` below is the full optional wishlist and drags in several
+# older packages; this narrow group is what `engine="jump"` actually needs.
+jump = ["jumpmodels>=0.1.1"]
 extra = [
     "jumpmodels",
     "PyPortfolioOpt>=1.5",

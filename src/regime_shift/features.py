@@ -7,6 +7,7 @@ walk-forward fold using train-only statistics.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 _ANNUALIZE = 252**0.5  # daily -> annual vol scaling
@@ -35,13 +36,19 @@ def add_realized_vol(df: pd.DataFrame, ret_col: str, windows: list[int]) -> pd.D
     return df
 
 
-def build_features(master: pd.DataFrame, cfg) -> pd.DataFrame:
+def build_features(master: pd.DataFrame, cfg, drawdown: bool = False) -> pd.DataFrame:
     """Assemble the full causal feature matrix for the regime model.
 
     Features: equity momentum + equity realized vol (windows from config), VIX level and
     its 1-day change, and any macro columns passed through as-is (build_master already
     forward-filled and lagged them). No standardization here; that happens train-only
     inside each walk-forward fold. Leading NaNs from the longest window are dropped.
+
+    drawdown adds dd_peak, the drop from the running peak of the equity curve. It is off by
+    default so the published baseline stays reproducible. Realized volatility is symmetric in
+    sign, which is why the fitted states order volatility perfectly and direction not at all;
+    drawdown is the cheapest feature that can tell a crash apart from an equally violent
+    rebound. Causal by construction, since cummax only ever looks backwards.
     """
     if "equity_ret" not in master.columns:
         raise ValueError("master must contain 'equity_ret' for momentum/vol features")
@@ -51,6 +58,10 @@ def build_features(master: pd.DataFrame, cfg) -> pd.DataFrame:
     add_realized_vol(feats, "equity_ret", cfg.features["vol_windows"])
     # ponytail: momentum/vol on equity only (the regime-defining asset). Per-asset is a
     # loop over _RETURN_COLS if the HMM ever needs bond/gold dynamics too.
+
+    if drawdown:
+        level = np.exp(master["equity_ret"].cumsum())
+        feats["dd_peak"] = level / level.cummax() - 1.0  # <= 0, deepest in a crash
 
     if "vix" in master.columns:
         feats["vix"] = master["vix"]

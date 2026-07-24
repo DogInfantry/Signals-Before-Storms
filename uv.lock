@@ -3368,6 +3368,9 @@ extra = [
     { name = "quantstats" },
     { name = "skfolio" },
 ]
+jump = [
+    { name = "jumpmodels" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -3383,6 +3386,7 @@ requires-dist = [
     { name = "hmmlearn", specifier = ">=0.3.0" },
     { name = "jugaad-data", marker = "extra == 'extra'" },
     { name = "jumpmodels", marker = "extra == 'extra'" },
+    { name = "jumpmodels", marker = "extra == 'jump'", specifier = ">=0.1.1" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "nbstripout", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "numpy", specifier = ">=1.26" },
@@ -3400,7 +3404,7 @@ requires-dist = [
     { name = "skfolio", marker = "extra == 'extra'", specifier = ">=0.7" },
     { name = "yfinance", specifier = ">=0.2.40" },
 ]
-provides-extras = ["extra", "dev"]
+provides-extras = ["jump", "extra", "dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "ipykernel", specifier = ">=7.3.0" }]
