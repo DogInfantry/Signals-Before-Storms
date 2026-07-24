@@ -5,10 +5,11 @@ portfolio weights across equities, bonds, and gold using convex optimization. Ev
 validated with a strictly leak-proof expanding walk-forward and charged realistic transaction
 costs, then compared against static 60/40 and equal-weight benchmarks.
 
-**Headline result: the regime overlay does not earn its complexity.** On US data it loses to a
-two-line volatility rule and to 60/40; on Indian data it lands within noise of equal weight while
-trading three times as much. That is the finding, not a bug, and the diagnosis is in
-[Results](#results) below.
+**Headline result: the regime overlay does not earn its complexity.** On both universes it loses
+to a two-line volatility rule, to a Statistical Jump Model, and to equal weight, while trading up
+to ten times as much. Two pre-registered fixes and a second regime estimator were tried; all of
+them failed, and they failed in the same direction, which is what makes the diagnosis credible.
+That is the finding, not a bug, and it is worked through in [Results](#results) below.
 
 ## Results
 
@@ -17,36 +18,49 @@ trading three times as much. That is the finding, not a bug, and the diagnosis i
 SPY / TLT / GLD / VIX, walk-forward out-of-sample 2016-07-05 to 2023-12-29, n = 1886 trading days,
 all books net of 7.5 bps per unit turnover and run through the identical cost engine.
 
-| strategy | ann return | ann vol | Sharpe | max DD | Calmar | turnover/yr |
-|---|---|---|---|---|---|---|
-| HMM, vol-ranked states | 4.9% | 9.6% | 0.542 | -28.7% | 0.170 | 4.19x |
-| HMM, return-ranked states | 5.7% | 9.7% | 0.620 | -28.5% | 0.200 | 3.77x |
-| **vol-threshold rule (ablation)** | **9.8%** | 10.3% | **0.958** | **-21.9%** | **0.446** | 3.61x |
-| static 60/40 | 7.5% | 11.5% | 0.690 | -27.6% | 0.273 | 0.41x |
-| equal weight | 5.9% | 9.6% | 0.650 | -23.0% | 0.258 | 0.42x |
+| strategy | ann return | ann vol | Sharpe | max DD | turnover/yr | DSR | Sharpe 95% CI |
+|---|---|---|---|---|---|---|---|
+| **vol-threshold rule (ablation)** | **9.8%** | 10.3% | **0.958** | **-21.9%** | 3.61x | **0.863** | **(0.24, 1.65)** |
+| static 60/40 | 7.5% | 11.5% | 0.690 | -27.6% | 0.41x | 0.643 | (-0.02, 1.42) |
+| Jump Model regimes | 6.6% | 10.1% | 0.682 | -25.1% | **1.46x** | 0.636 | (-0.09, 1.40) |
+| equal weight | 5.9% | 9.6% | 0.650 | -23.0% | 0.42x | 0.602 | (-0.09, 1.38) |
+| HMM + drawdown feature | 5.4% | 9.6% | 0.590 | -28.0% | 3.88x | 0.538 | (-0.13, 1.34) |
+| HMM + volatility targeting | 5.0% | 9.4% | 0.562 | -27.3% | 4.10x | 0.508 | (-0.18, 1.27) |
+| HMM, vol-ranked states | 4.9% | 9.6% | 0.542 | -28.7% | 4.19x | 0.486 | (-0.21, 1.26) |
+| HMM, unconditional moments | 4.8% | 9.6% | 0.535 | -27.4% | 2.74x | 0.478 | (-0.17, 1.25) |
 
-Deflated Sharpe at 4 honest trials: 0.630 / 0.706 / **0.928**. Stationary-bootstrap 95% CI on the
-Sharpe: the two HMM variants straddle zero, the rule does not - (0.238, 1.652).
+Deflated Sharpe is quoted at **7 trials**, the honest count of variants actually searched. It was
+0.928 for the rule at 4 trials; searching three more ideas lowered every number in that column,
+which is exactly what deflation is for. Only the rule has a bootstrap interval excluding zero.
+Every HMM variant straddles it.
 
 ### India (primary universe)
 
-^NSEI / GOLDBEES.NS / ^INDIAVIX, out-of-sample 2016-07-22 to 2023-12-29, n = 1816. No Indian bond
-ticker is resolved yet, so the book allocates over equity and gold only and the 60/40 benchmark
-renormalizes to 100% equity.
+^NSEI / LIQUIDBEES.NS / GOLDBEES.NS / ^INDIAVIX, out-of-sample 2016-07-22 to 2023-12-29, n = 1814.
+No liquid Indian duration ETF exists on Yahoo for this window (see
+[data quality](#why-the-key-decisions)), so the defensive sleeve is an overnight cash fund,
+labelled cash rather than pretending to be a bond. The 60/40 benchmark therefore renormalizes to
+100% equity.
 
-| strategy | ann return | ann vol | Sharpe | max DD | Calmar | turnover/yr |
+**Sharpe here is measured against the 3.79% rate that cash sleeve actually paid.** With a
+near-riskless asset in the opportunity set, scoring against rf = 0 hands every defensive book a
+large free Sharpe simply for holding cash: it inflated these numbers to 1.2-1.7 and reversed the
+ranking.
+
+| strategy | ann return | ann vol | Sharpe | max DD | turnover/yr | DSR |
 |---|---|---|---|---|---|---|
-| HMM, regime-conditional moments | 12.6% | 10.2% | 1.215 | -22.4% | 0.564 | 1.52x |
-| HMM, unconditional moments | 12.1% | 10.1% | 1.176 | -22.5% | 0.537 | 1.02x |
-| vol-threshold rule (ablation) | 12.0% | 10.4% | 1.136 | -22.5% | 0.532 | 0.65x |
-| 60/40 (= 100% equity here) | 13.3% | 17.0% | 0.817 | -38.4% | 0.345 | 0.14x |
-| **equal weight** | 12.3% | 10.2% | **1.185** | -22.5% | 0.546 | 0.43x |
+| **vol-threshold rule (ablation)** | 7.5% | 4.2% | **0.848** | -6.5% | 0.88x | **0.783** |
+| Jump Model regimes | 7.6% | 4.3% | 0.839 | -7.1% | **0.25x** | 0.775 |
+| equal weight | 9.5% | 6.8% | 0.815 | -15.2% | 0.41x | 0.752 |
+| HMM + drawdown feature | 7.0% | 4.0% | 0.759 | -6.1% | 1.24x | 0.707 |
+| HMM, unconditional moments | 6.9% | 3.9% | 0.755 | -6.2% | 0.52x | 0.704 |
+| HMM, regime-conditional moments | 7.0% | 4.1% | 0.744 | -6.1% | 1.10x | 0.693 |
+| 60/40 (= 100% equity here) | 13.3% | 17.0% | 0.594 | -38.4% | 0.14x | 0.541 |
 
-The HMM does come first here, by 0.03 Sharpe over 1/N, for three and a half times the turnover.
-That is not a result, it is a rounding error with a transaction-cost bill attached. Every
-diversified book lands at 10.2% vol and Sharpe ~1.2 while the all-equity benchmark sits at 17% vol
-and 0.82, which says the gold sleeve is doing the work and the regime switching is along for the
-ride.
+Same ordering as the US: the two-line rule first, the Jump Model close behind at a quarter of the
+turnover, equal weight next, and every HMM variant below all three. An earlier version of this
+table showed the HMM winning; that was an artifact of having no cash sleeve and scoring against a
+zero risk-free rate. Fixing both reversed it.
 
 ### Why the HMM loses
 
@@ -73,6 +87,36 @@ volatile as the crashes that preceded them. Three supporting checks:
   model fitting a fat-tailed continuum rather than finding discrete states. There is no BIC
   support for K=3.
 
+**A second, structurally different estimator fails identically.** A Statistical Jump Model was run
+through the same walk-forward. Its jump penalty suppresses spurious switching and it does exactly
+what it promises: mean dwell rises from 27 days to 194, turnover drops from 4.19x to 1.46x, and
+Sharpe improves to 0.682. Yet its states agree with the HMM only 58.6% of the time and produce the
+same broken ordering:
+
+| Jump Model label | days | equity ann return | equity vol | mean VIX |
+|---|---|---|---|---|
+| 0 | 1164 | +13.5% | 12.8% | 16.3 |
+| 1 | 615 | +12.8% | 19.3% | 21.4 |
+| 2 | 106 | **+20.0%** | 46.6% | 31.8 |
+
+Two different estimators, low label agreement, and both order volatility perfectly while ordering
+direction not at all. That points at the state space, not at the HMM.
+
+**Two fixes were pre-registered and both failed.**
+
+*Volatility targeting.* If the states predict variance, stop betting on direction and target
+constant risk instead. Sharpe moved 0.542 to 0.562 on US and was bit-identical on India. The
+reason is instructive: minimum variance already holds the book at 9.6% (US) and 4.1% (India)
+volatility, so a 10% target almost never binds. The strategy's problem is that it is *already*
+too de-risked, and giving up return is what costs it.
+
+*A directional feature.* Drawdown-from-peak was added to the state space, since realized
+volatility is symmetric in sign and cannot tell a crash from an equally violent rebound. The
+success criterion was stated before looking at any Sharpe: **the crisis label's next-day equity
+return has to turn negative.** It went from +16.1% to +17.6%. It did not turn negative, so the
+feature failed on its own terms. Sharpe did drift up to 0.590, and that is explicitly not being
+counted as a win.
+
 The overlay is not useless: it is barely dented in March 2020 while 60/40 takes -14%. It fails in
 2022, a slow bear where bonds fell alongside equities and minimum variance had nowhere to hide.
 
@@ -94,8 +138,14 @@ Written to `results/` by the driver (gitignored, regenerate in one command):
   and a small set of FRED macro series (yield-curve slope, credit spread, financial conditions).
   FRED is fetched keyless and degrades gracefully when the endpoint is unreachable.
 - **India primary, US robustness:** the graded universe is Indian (NIFTY, gold, India VIX); the
-  same pipeline re-runs on US assets as an out-of-sample check. India currently has no bond
-  ticker resolved, so it allocates over equity and gold only.
+  same pipeline re-runs on US assets as an out-of-sample check.
+- **No Indian bond sleeve, because no usable one exists here.** Every candidate duration ETF on
+  Yahoo was measured before being rejected: SETF10GILT.NS shows 39.0% annualised volatility with
+  21.7% zero-return days, LTGILTBEES.NS 15.7% with 9.1%, and both start mid-sample (2016-06 and
+  2018-05), which would truncate the out-of-sample window. A 10-year G-Sec ETF does not have 39%
+  volatility; that is thin-trading noise around NAV, and `drop_return_outliers` at 0.5 would not
+  catch it because no single print is absurd. LIQUIDBEES.NS (1.1% vol, 53.6% zero-return days,
+  full history) is used instead and is called cash, not a bond.
 - **Vendor data is guarded, not trusted:** GOLDBEES.NS on Yahoo prints a 100x round trip over
   2019-12-19 to 2019-12-23 (log returns of -4.61 then +4.61). Left alone it inflates gold's return
   standard deviation from 0.011 to 0.139 and, through the covariance, every Indian result: the
@@ -126,11 +176,14 @@ tests/              leak-proofing and metric checks
 ## Quickstart
 
 ```bash
-uv sync --extra dev
+uv sync --extra dev --extra jump
 uv run pytest -q
 uv run python notebooks/real_run.py us
 uv run python notebooks/real_run.py india
 ```
+
+The `jump` extra pulls `jumpmodels` for the second regime engine. Without it the pipeline still
+runs end to end and simply skips the Jump Model book.
 
 The first run downloads prices from Yahoo and caches them under `data/`; every later run is
 offline. `notebooks/driver.ipynb` is the same pipeline with the narrative attached.

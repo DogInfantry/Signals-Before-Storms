@@ -126,10 +126,16 @@ skfolio, quantstats, arch.
   fetchable from a clone. README.md plus this file carry everything needed to resume the work.
 
 ## Current state
-- Phases 0-9 DONE (everything except the optional narrate.py and the optional jumpmodels
-  comparison). Phase 0-1 committed (3 commits: b56c652, 72e475d, 999594b). Phases 2-9 IMPLEMENTED
-  but NOT COMMITTED (user hold: no commits until the repo name is decided).
-- 36 tests green, ruff clean. Env locked (uv.lock, ipykernel added to dev). Nothing pushed.
+- Phases 0-9 DONE plus all three follow-up extensions. Only narrate.py remains a stub (optional).
+- PUBLIC at https://github.com/DogInfantry/Signals-Before-Storms, Apache-2.0, main pushed.
+- 38 tests green, ruff clean. Env locked. jumpmodels lives in a narrow `jump` extra:
+  uv sync --extra dev --extra jump. It installs cleanly and does NOT downgrade numpy 2.5.1 /
+  pandas 3.0.5 (verified, and the US table was re-run identical afterwards).
+- NEW API since the first write-up: run_backtest(target_vol=), build_features(drawdown=),
+  metrics.summary(rf=), data._ASSET_ROLES now includes "cash", walkforward rank_col/rank_sign.
+- backtest._drift now divides by the portfolio value multiplier (1 + w@r) instead of the grown
+  weight sum, so a partially invested book keeps an uninvested residual earning nothing. Identical
+  arithmetic when sum(w)==1, which is why every published number survived the change untouched.
 - Uncommitted working tree:
   - M CLAUDE.md, README.md, pyproject.toml, uv.lock, config/config.yaml,
     src/regime_shift/{config,data,features,optimize,regime,walkforward,backtest,metrics,
@@ -185,31 +191,45 @@ US 2016-2023. Evidence, all out-of-sample at the traded 1-day lag:
   continuum, not finding discrete states. No BIC support for K=3.
 - The 2-line vol-threshold ablation DOES separate direction: L0 +19.7% (Sharpe 1.39) vs L2 -9.6%
   (Sharpe -0.16), only 48.9% label agreement with the HMM. It wins on every metric.
-Deflated Sharpe at 4 honest trials: rank_vol 0.630, rank_return 0.706, vol_rule 0.928. Only the
-vol rule has a bootstrap CI excluding zero: (0.238, 1.652).
-INDIA (primary universe, post data fix, OOS 2016-07-22..2023-12-29 n=1816): hmm_conditional
-sharpe 1.215 / hmm_unconditional 1.176 / equal_weight 1.185 / vol_rule 1.136 / 60-40 (=100%
-equity, no bond ticker) 0.817. The HMM "wins" by 0.03 sharpe over 1/N for 3.5x the turnover, which
-is a rounding error with a cost bill. Every diversified book sits at 10.2% vol and sharpe ~1.2
-while all-equity sits at 17% and 0.82: the GOLD SLEEVE is doing the work, not the regime switching.
-Sharpe CI (0.446, 1.944), DSR 0.934 at 10 trials.
+THREE RESCUE ATTEMPTS, ALL FAILED, ALL IN THE SAME DIRECTION (2026-07-24):
+- JUMP MODEL (jumpmodels 0.1.1, `uv sync --extra jump`): works, and does what it advertises. Dwell
+  27d -> 194d, turnover 4.19x -> 1.46x, sharpe 0.542 -> 0.682. Label agreement with HMM only 0.586,
+  so it is a genuinely different partition. And its crisis label still has the HIGHEST forward
+  return (+20.0% on 106 days, vol 46.6%, VIX 31.8). Two unrelated estimators, low agreement, same
+  broken ordering => the fault is the STATE SPACE, not the HMM. This is the flagship result.
+- VOL TARGETING (run_backtest target_vol=0.10): sharpe 0.542 -> 0.562 US, bit-identical on India.
+  It barely binds, because min-var already pins the book at 9.6% (US) / 4.1% (India) vol. The
+  strategy is not taking too much risk, it is taking too little and forfeiting return.
+- DRAWDOWN FEATURE (build_features(drawdown=True) -> dd_peak): PRE-REGISTERED criterion was
+  "crisis label forward return must turn negative". It went +16.1% -> +17.6%. FAILED on its own
+  terms. Sharpe drifted 0.542 -> 0.590; explicitly NOT counted as a win. Do not re-litigate this
+  by pointing at the Sharpe.
+Deflated Sharpe now at 7 honest trials (was 4): vol_rule 0.863, 60_40 0.643, jump 0.636, equal_wt
+0.602, drawdown 0.538, vol_targeted 0.508, rank_vol 0.486, unconditional 0.478. Only the vol rule
+has a bootstrap CI excluding zero: (0.238, 1.652). Adding trials LOWERED every DSR, as intended.
+INDIA (primary universe, WITH the cash sleeve, OOS 2016-07-22..2023-12-29 n=1814, Sharpe measured
+against the rf=3.79% that LIQUIDBEES actually paid): vol_rule 0.848 / jump 0.839 (turnover only
+0.25x!) / equal_weight 0.815 / drawdown 0.759 / hmm_unconditional 0.755 / hmm_conditional 0.744 =
+hmm_vol_targeted 0.744 / 60-40 (=100% equity) 0.594. SAME ORDERING AS US.
+IMPORTANT: an earlier CLAUDE.md and README reported India as an HMM WIN (1.215 vs 1.185 for 1/N).
+That was WRONG for two compounding reasons, both now fixed: no cash sleeve existed, and Sharpe was
+scored against rf=0 so any book parking in a near-riskless asset got a free boost. metrics.summary
+now takes rf and real_run.py derives it from cash_ret. Do not resurrect the old India numbers.
 This IS the report's flagship result. A rigorous negative with a diagnosis beats a tuned positive.
 Config default deliberately left at rank_col="vol_21"; do NOT quietly switch it to the variant
 that scored 0.08 higher, that is exactly the selection bias the DSR is there to punish.
 
 ## Active task
-Nothing blocking. Phases 0-9 are done and the story is written up. Open choices, in the order they
-matter:
-1. DECIDE THE REPO NAME so phases 2-9 can finally be committed (user hold, nothing is committed
-   since 999594b).
-2. Resolve the India bond ticker (config india.bond is still ""). It is the last real gap in the
-   graded universe, and it would let defensive_weights actually defend there.
-3. Optional modelling, only with a real hypothesis: give the state space a directional feature
-   (drawdown-from-peak, or the sign of mom_126). Momentum features exist but the diag-covariance
-   Gaussian latches onto the vol/VIX dimensions. Every new variant increments the trial count in
-   deflated_sharpe, and at 4 trials the budget is mostly spent.
-4. Optional: jumpmodels (uv add jumpmodels) for the HMM-vs-JM comparison; narrate.py is still a
-   stub and is explicitly optional.
+Nothing blocking. Repo is public at https://github.com/DogInfantry/Signals-Before-Storms, all loose
+ends closed, everything committed and pushed. If work resumes, the honest options are:
+1. A DIRECTIONAL state variable, which is the only thing the evidence actually points to: credit
+   spreads (FRED BAA10Y, already in the config macro list but FRED is blocked on this network),
+   market breadth, earnings revisions, positioning. Realized vol and VIX are symmetric in sign and
+   cannot supply direction, which is the whole finding. NOTE the DSR budget is nearly spent: at 7
+   trials any new variant needs a materially larger raw Sharpe just to hold its ground.
+2. narrate.py is still a stub, explicitly optional, and the lowest research value of anything left.
+3. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears; the
+   gilt ETFs there are noise, not risk (see the data-quality section).
 
 ## Next steps
 1. Repo name, then commit phases 2-9 (ACTIVE, blocked on the user).
