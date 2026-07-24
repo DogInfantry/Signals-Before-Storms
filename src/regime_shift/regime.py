@@ -19,12 +19,20 @@ from scipy.special import logsumexp
 REGIME_NAMES_3 = ("Bull", "Bear", "Crisis")
 
 
-def _canonical_order(raw_labels: np.ndarray, rank_by: np.ndarray, tiebreak: np.ndarray | None):
+def _canonical_order(
+    raw_labels: np.ndarray, rank_by: np.ndarray, tiebreak: np.ndarray | None, n_states: int
+):
     """Return raw-state ids sorted ascending by within-state mean risk (calmest first).
 
     rank_by is a per-row risk proxy (realized vol); tiebreak (per-row, e.g. return) breaks
     ties. This is what defuses HMM label-switching: after every refit the raw state indices
     are permuted, but sorting them by mean vol pins them back to Bull/Bear/Crisis.
+
+    A fit does not have to occupy every state: an HMM can leave one unvisited, and a Jump Model
+    with a large jump_penalty can collapse to a single state entirely. Unoccupied states have no
+    risk to rank, so they are appended after the occupied ones. The result is always a full
+    permutation of range(n_states), because the caller inverts it into a lookup table and a short
+    order would otherwise fail with an opaque broadcasting error.
     """
     states = np.unique(raw_labels)
     vol_mean = np.array([rank_by[raw_labels == s].mean() for s in states])
@@ -33,6 +41,14 @@ def _canonical_order(raw_labels: np.ndarray, rank_by: np.ndarray, tiebreak: np.n
         order = states[np.lexsort((tb_mean, vol_mean))]  # primary vol asc, then tiebreak asc
     else:
         order = states[np.argsort(vol_mean, kind="stable")]
+
+    if order.size < n_states:
+        warnings.warn(
+            f"fit occupied only {order.size} of {n_states} states; the rest are unreachable in "
+            "this fold. A collapsed fit usually means jump_penalty is too large for the data.",
+            stacklevel=2,
+        )
+        order = np.concatenate([order, np.setdiff1d(np.arange(n_states), order)])
     return order  # order[k] == raw state that becomes canonical label k
 
 
@@ -108,7 +124,9 @@ class RegimeModel:
             )
             self._raw_order = np.arange(self.n_states)
         else:
-            self._raw_order = _canonical_order(raw, np.asarray(rank_by, dtype=float), tiebreak)
+            self._raw_order = _canonical_order(
+                raw, np.asarray(rank_by, dtype=float), tiebreak, self.n_states
+            )
         return self
 
     def _to_canonical(self, raw_labels: np.ndarray) -> np.ndarray:

@@ -3353,13 +3353,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev = [
-    { name = "nbstripout" },
-    { name = "papermill" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
 extra = [
     { name = "arch" },
     { name = "jugaad-data" },
@@ -3375,6 +3368,11 @@ jump = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
+    { name = "nbstripout" },
+    { name = "papermill" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -3388,26 +3386,28 @@ requires-dist = [
     { name = "jumpmodels", marker = "extra == 'extra'" },
     { name = "jumpmodels", marker = "extra == 'jump'", specifier = ">=0.1.1" },
     { name = "matplotlib", specifier = ">=3.8" },
-    { name = "nbstripout", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.2" },
-    { name = "papermill", marker = "extra == 'dev'", specifier = ">=2.6" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pyportfolioopt", marker = "extra == 'extra'", specifier = ">=1.5" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "quantstats", marker = "extra == 'extra'", specifier = ">=0.0.75" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
     { name = "scikit-learn", specifier = ">=1.4" },
     { name = "scipy", specifier = ">=1.11" },
     { name = "skfolio", marker = "extra == 'extra'", specifier = ">=0.7" },
     { name = "yfinance", specifier = ">=0.2.40" },
 ]
-provides-extras = ["jump", "extra", "dev"]
+provides-extras = ["jump", "extra"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.3.0" }]
+dev = [
+    { name = "ipykernel", specifier = ">=7.3.0" },
+    { name = "nbstripout", specifier = ">=0.7" },
+    { name = "papermill", specifier = ">=2.6" },
+    { name = "pre-commit", specifier = ">=3.7" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.6" },
+]
 
 [[package]]
 name = "six"

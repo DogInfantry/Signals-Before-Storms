@@ -176,7 +176,7 @@ tests/              leak-proofing and metric checks
 ## Quickstart
 
 ```bash
-uv sync --extra dev --extra jump
+uv sync --extra jump
 uv run pytest -q
 uv run python notebooks/real_run.py us
 uv run python notebooks/real_run.py india

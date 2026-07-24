@@ -35,13 +35,6 @@ extra = [
     "arch>=7.0",
     "jugaad-data",
 ]
-dev = [
-    "pytest>=8.0",
-    "ruff>=0.6",
-    "pre-commit>=3.7",
-    "nbstripout>=0.7",
-    "papermill>=2.6",
-]
 
 [build-system]
 requires = ["hatchling"]
@@ -62,6 +55,13 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [dependency-groups]
+# The single dev definition. There used to be a `dev` extra here as well as this group, and
+# `uv sync --dev` installs the GROUP, so CI got ipykernel and no ruff or pytest. One definition.
 dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "pre-commit>=3.7",
+    "nbstripout>=0.7",
+    "papermill>=2.6",
     "ipykernel>=7.3.0",
 ]

@@ -11,6 +11,7 @@ Synthetic two-regime data (calm vs turbulent), seeded, so the test is offline an
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from regime_shift.regime import RegimeModel, dwell_times
 
@@ -72,3 +73,26 @@ def test_dwell_times_run_lengths():
     labels = np.array([0, 0, 0, 1, 1, 0])
     dwell = dwell_times(labels)
     assert dwell == {0: 2.0, 1: 2.0}  # state 0 runs [3, 1] -> mean 2.0; state 1 run [2] -> 2.0
+
+
+def test_jump_engine_ranks_and_decodes_causally():
+    """The second engine is optional, so skip when it is absent, but pin the contract when it is
+    installed: same canonical ordering, and a causal decode via predict_online."""
+    pytest.importorskip("jumpmodels")
+    X, rank_by, true = _two_regime_data()
+    X = (X - X.mean(axis=0)) / X.std(axis=0)  # the walk-forward standardizes train-only too
+    # jump_penalty is scale-dependent. On this 2-feature fixture the default of 50 collapses to a
+    # single state (survivable since _canonical_order pads the order, but it tests nothing) while
+    # below ~1 the labels switch too freely to track the true regime. 5 separates it cleanly.
+    model = RegimeModel(engine="jump", n_states=2, random_state=42, jump_penalty=5.0).fit(
+        X, rank_by=rank_by
+    )
+
+    labels = model.decode_causal(X)
+    assert labels.shape == (X.shape[0],)
+    assert set(np.unique(labels)) <= {0, 1}
+    assert np.median(labels[true == 0]) == 0  # canonical 0 is still the calmest state
+    assert np.median(labels[true == 1]) == 1
+    # jump models exist to suppress switching, so they should be at least as sticky as the HMM
+    hmm = RegimeModel(engine="hmm", n_states=2, random_state=42).fit(X, rank_by=rank_by)
+    assert np.mean(np.diff(labels) != 0) <= np.mean(np.diff(hmm.decode_causal(X)) != 0) + 1e-9

@@ -247,6 +247,14 @@ ends closed, everything committed and pushed. If work resumes, the honest option
 - Full real run + figures: uv run python notebooks/real_run.py us
 
 ## Gotchas
+- DEV DEPS LIVE IN ONE PLACE: [dependency-groups] dev. There used to ALSO be a `dev` extra under
+  [project.optional-dependencies], and `uv sync --dev` installs the GROUP, so CI got ipykernel and
+  no ruff/pytest and failed on every push with "Failed to spawn: ruff". Do not re-add a dev extra.
+  `uv sync` alone now gives a working dev env; `uv sync --extra jump` adds the second engine.
+- jump_penalty is SCALE-DEPENDENT and the RegimeModel default (50.0) is tuned for the 9 real
+  standardized features. On a small/low-dim feature set it collapses the fit to ONE state. That
+  used to crash _to_canonical with an opaque broadcast error; _canonical_order now pads the order
+  to a full permutation and warns instead. An HMM can leave a state unvisited the same way.
 - GateGuard hook (ECC gateguard-fact-force) DENIES the FIRST Write/Edit of a file per session,
   including edits of existing files (not only new-file creation as previously noted). Retry after
   stating facts (importers via Grep, public API, data schema, verbatim instruction). ECC_GATEGUARD=off
