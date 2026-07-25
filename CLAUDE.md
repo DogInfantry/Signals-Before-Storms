@@ -168,7 +168,7 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 - `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
   **defaulting to india**. Requests macro explicitly and PRINTS whether it landed (the module
   silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
-  label tables, BOTH gross and net scorecards, and the deflation table; writes 15 figures to
+  label tables, BOTH gross and net scorecards, and the deflation table; writes 16 figures to
   `results/`. matplotlib Agg, no display needed.
 - `notebooks/driver.ipynb`: 58 cells, India-primary (`MARKET = "india"` in the config cell),
   executes clean with 0 errors and 15 embedded figures, all post-`style.py`, and a US robustness
@@ -193,10 +193,15 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   Every published number is macro-free and both entry points print `landed=NONE` to say so.
   US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
   Feature matrices are 9 columns on BOTH universes now (was 10 on India, see landmine 4).
-- 30 figures in `results/` (gitignored): `{india,us}_{story,returns,feature_sanity,label_profile,episode_bars,
+- 32 figures in `results/` (gitignored): `{india,us}_{story,returns,feature_sanity,label_profile,episode_bars,paired_forest,
   weight_stack,gross_vs_net,sharpe_forest,bic_curve,regime_overlay,equity_drawdown,
-  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. That is 15 per universe: 14
-  `save()` calls plus the direct `fig.savefig(..._story.png)` in `real_run.py`. The notebook's embedded copies are what a reader without the repo sees.
+  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. That is 16 per universe.
+  Six of them (`story,label_profile,episode_bars,paired_forest,regime_weights,sensitivity`) ALSO
+  write an `.svg`, listed in `real_run.SITE_FIGURES`, because those are what `docs/` embeds and
+  vector text stays sharp on a phone. `regime_overlay` and `equity_drawdown` are deliberately
+  raster-only: several thousand points per series made the SVG 590 kB against a 224 kB PNG.
+  So `results/` holds 32 PNG + 12 SVG, and `docs/img/` holds 9 files. The notebook's embedded
+  copies are what a reader without the repo sees.
 - Phases 0-9 done, three follow-up extensions, plus the spec-adherence pass. Only `narrate.py`
   remains a stub (optional).
 
@@ -455,7 +460,7 @@ uv sync --extra jump          # dev group installs by default
 uv run pytest -q              # 46 tests
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
-uv run python notebooks/real_run.py india          # PRIMARY: full run + 15 figures
+uv run python notebooks/real_run.py india          # PRIMARY: full run + 16 figures
 uv run python notebooks/real_run.py us             # robustness; must stay bit-identical
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 ```
