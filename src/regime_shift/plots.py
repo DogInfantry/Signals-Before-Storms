@@ -15,8 +15,6 @@ import pandas as pd
 
 from regime_shift.regime import REGIME_NAMES_3, label_episodes
 from regime_shift.style import (
-    BAD,
-    GOOD,
     INK,
     INK_FAINT,
     NEUTRAL,
@@ -82,7 +80,7 @@ def regime_overlay(level: pd.Series, regimes: pd.Series, names=None, ax=None, lo
     for (start, _, label), stop in zip(blocks, stops, strict=True):
         ax.axvspan(start, stop, color=REGIME_COLORS[label % len(REGIME_COLORS)], alpha=0.18, lw=0)
 
-    ax.plot(level.index, level.to_numpy(), color="black", lw=1.0)
+    ax.plot(level.index, level.to_numpy(), color=INK, lw=1.0)
     if log:
         ax.set_yscale("log")
     ax.set_xlim(labels.index[0], labels.index[-1])
@@ -116,7 +114,7 @@ def equity_drawdown(books: dict, col: str = "ret_net", axes=None):
     top.set_ylabel("growth of 1")
     top.legend(frameon=False, ncols=len(books))
     bottom.set_ylabel("drawdown")
-    bottom.axhline(0.0, color="black", lw=0.6)
+    bottom.axhline(0.0, color=INK, lw=0.6)
     return axes
 
 
@@ -145,10 +143,10 @@ def return_panel(master: pd.DataFrame, axes=None):
 
     for (ts, marg), col in zip(axes, cols, strict=True):
         r = master[col].dropna()
-        ts.plot(r.index, r.to_numpy(), lw=0.4, color="#37474f")
-        ts.axhline(0.0, color="black", lw=0.5)
+        ts.plot(r.index, r.to_numpy(), lw=0.4, color=NEUTRAL)
+        ts.axhline(0.0, color=INK, lw=0.5)
         ts.set_ylabel(col.removesuffix("_ret"))
-        marg.hist(r.to_numpy(), bins=80, orientation="horizontal", color="#37474f")
+        marg.hist(r.to_numpy(), bins=80, orientation="horizontal", color=NEUTRAL)
         marg.set_xscale("log")
         marg.set_ylim(ts.get_ylim())  # same return scale, so the tails line up across panels
         marg.tick_params(labelleft=False)
@@ -173,7 +171,7 @@ def feature_sanity(feats: pd.DataFrame, spans=STRESS_SPANS, cols=("vol_21", "vix
     axes = np.atleast_1d(axes)
 
     for ax, col in zip(axes, cols, strict=True):
-        ax.plot(feats.index, feats[col].to_numpy(), lw=0.9, color="#37474f")
+        ax.plot(feats.index, feats[col].to_numpy(), lw=0.9, color=NEUTRAL)
         for start, stop, _ in spans:
             ax.axvspan(
                 pd.Timestamp(start), pd.Timestamp(stop), color=REGIME_COLORS[2], alpha=0.16, lw=0
@@ -184,7 +182,7 @@ def feature_sanity(feats: pd.DataFrame, spans=STRESS_SPANS, cols=("vol_21", "vix
     for start, stop, name in spans:
         mid = pd.Timestamp(start) + (pd.Timestamp(stop) - pd.Timestamp(start)) / 2
         top.annotate(
-            name, (mid, top.get_ylim()[1]), ha="center", va="top", fontsize=9, color="#c62828"
+            name, (mid, top.get_ylim()[1]), ha="center", va="top", fontsize=9, color=SERIES_B
         )
     return axes
 
@@ -199,13 +197,13 @@ def gross_vs_net(book: pd.DataFrame, ax=None):
     """
     ax = ax or plt.subplots(figsize=(12, 5))[1]
     gross, net = book["equity_gross"], book["equity_net"]
-    ax.plot(gross.index, gross.to_numpy(), lw=1.3, color="#37474f", label="gross of costs")
-    ax.plot(net.index, net.to_numpy(), lw=1.3, color="#c62828", label="net of costs")
+    ax.plot(gross.index, gross.to_numpy(), lw=1.3, color=NEUTRAL, label="gross of costs")
+    ax.plot(net.index, net.to_numpy(), lw=1.3, color=SERIES_B, label="net of costs")
     ax.fill_between(
         net.index,
         net.to_numpy(),
         gross.to_numpy(),
-        color="#c62828",
+        color=SERIES_B,
         alpha=0.20,
         lw=0,
         label="cumulative cost drag",
@@ -320,7 +318,7 @@ def bic_curve(sweep: dict, ax=None):
     """
     ax = ax or plt.subplots(figsize=(6, 4))[1]
     ks = sorted(sweep)
-    ax.plot(ks, [sweep[k] for k in ks], marker="o", color="#37474f")
+    ax.plot(ks, [sweep[k] for k in ks], marker="o", color=NEUTRAL)
     ax.set_xticks(ks)
     ax.set_xlabel("n_states")
     ax.set_ylabel("BIC (lower is better)")
@@ -339,15 +337,16 @@ def sharpe_forest(sharpes: dict, cis: dict, ax=None):
     lo = [cis[k][0] for k in order]
     hi = [cis[k][1] for k in order]
 
-    ax.hlines(y, lo, hi, color="#37474f", lw=1.4)
-    # colour on whether the interval clears zero, not on rank: that is the claim being made
+    ax.hlines(y, lo, hi, color=NEUTRAL, lw=1.4)
+    # colour on whether the interval clears zero, not on rank: that is the claim being made, and
+    # it is the same encoding paired_forest uses, so the two forests read the same way
     ax.scatter(
         [sharpes[k] for k in order],
         y,
         zorder=3,
-        color=["#c62828" if x <= 0 else "#2e7d32" for x in lo],
+        color=[NEUTRAL if x <= 0 else SERIES_A for x in lo],
     )
-    ax.axvline(0.0, color="black", lw=0.8, ls="--")
+    ax.axvline(0.0, color=INK, lw=0.8, ls="--")
     ax.set_yticks(y, order)
     ax.set_xlabel("Sharpe (95% stationary-bootstrap interval)")
     return ax
@@ -387,7 +386,9 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
         centres,
         rets,
         width=widths,
-        color=[BAD if v < 0 else GOOD for v in rets],
+        # sign by the validated two-series pair, never green/red: the zero rule already carries
+        # sign, so hue reinforces it rather than being the only channel that says it
+        color=[SERIES_B if v < 0 else SERIES_A for v in rets],
         edgecolor=SURFACE,  # a 2px surface gap, so adjacent episodes stay countable
         linewidth=1.2,
         zorder=3,
@@ -440,7 +441,7 @@ def regime_weight_heatmap(book: pd.DataFrame, names=None, ax=None):
             v = grid.iat[i, j]
             ax.text(
                 j, i, f"{v:.2f}", ha="center", va="center",
-                color="white" if v > 0.5 else "black",
+                color="white" if v > 0.5 else INK,
             )
     ax.figure.colorbar(im, ax=ax, shrink=0.8, label="mean weight")
     return ax
@@ -461,7 +462,7 @@ def rolling_sharpe(books: dict, window: int = 252, col: str = "ret_net", rf: flo
             excess.rolling(window).mean() / excess.rolling(window).std() * np.sqrt(252)
         ).dropna()
         ax.plot(roll.index, roll.to_numpy(), lw=1.2, label=name)
-    ax.axhline(0.0, color="black", lw=0.8, ls="--")
+    ax.axhline(0.0, color=INK, lw=0.8, ls="--")
     ax.set_ylabel(f"rolling {window}d Sharpe")
     ax.legend(frameon=False, ncols=3, fontsize=8)
     return ax
@@ -481,12 +482,12 @@ def sensitivity_panel(table: pd.DataFrame, metric: str = "sharpe", axes=None):
 
     for ax, knob in zip(axes, knobs, strict=True):
         sub = table[table["knob"] == knob].sort_values("value")
-        ax.plot(sub["value"], sub[metric], marker="o", color="#37474f")
+        ax.plot(sub["value"], sub[metric], marker="o", color=NEUTRAL)
         shipped = sub[sub["is_default"]]
         if not shipped.empty:
             ax.scatter(
                 shipped["value"], shipped[metric], s=110, facecolors="none",
-                edgecolors="#c62828", lw=2, zorder=3, label="shipped default",
+                edgecolors=SERIES_B, lw=2, zorder=3, label="shipped default",
             )
             ax.legend(frameon=False, fontsize=8)
         ax.set_xlabel(knob)
@@ -511,8 +512,8 @@ def paired_forest(paired: dict, bench: str, ax=None):
     clears = [a > 0 or b < 0 for a, b in zip(lo, hi, strict=True)]
 
     ax.hlines(y, lo, hi, color=INK_FAINT, lw=2.2, zorder=2)
-    ax.scatter(diff, y, s=46, zorder=3, color=[GOOD if c else NEUTRAL for c in clears])
-    ax.axvline(0.0, color=BAD, lw=1.3, ls="--", zorder=1)
+    ax.scatter(diff, y, s=46, zorder=3, color=[SERIES_A if c else NEUTRAL for c in clears])
+    ax.axvline(0.0, color=INK, lw=1.3, ls="--", zorder=1)
     ax.set_yticks(y, order)
     ax.set_xlabel(f"Sharpe difference vs {bench}  (95% paired bootstrap)")
     ax.grid(axis="y", visible=False)
@@ -543,7 +544,7 @@ def story_panel(
         np.arange(len(names)),
         [dd[n] for n in names],
         0.62,
-        color=[GOOD if abs(dd[n]) < 0.10 else SERIES_B for n in names],
+        color=[SERIES_A if abs(dd[n]) < 0.10 else SERIES_B for n in names],
         zorder=3,
     )
     bar_labels(ax4, bars, dy=0.004)
@@ -585,7 +586,7 @@ def transition_heatmap(matrix, names=None, ax=None):
                 f"{p[i, j]:.2f}",
                 ha="center",
                 va="center",
-                color="white" if p[i, j] > 0.5 else "black",
+                color="white" if p[i, j] > 0.5 else INK,
             )
     ax.figure.colorbar(im, ax=ax, shrink=0.8)
     return ax
