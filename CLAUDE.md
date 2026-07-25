@@ -193,9 +193,10 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   Every published number is macro-free and both entry points print `landed=NONE` to say so.
   US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
   Feature matrices are 9 columns on BOTH universes now (was 10 on India, see landmine 4).
-- 28 figures in `results/` (gitignored): `{india,us}_{returns,feature_sanity,label_profile,episode_bars,
+- 30 figures in `results/` (gitignored): `{india,us}_{story,returns,feature_sanity,label_profile,episode_bars,
   weight_stack,gross_vs_net,sharpe_forest,bic_curve,regime_overlay,equity_drawdown,
-  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. The notebook's embedded copies are what a reader without the repo sees.
+  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. That is 15 per universe: 14
+  `save()` calls plus the direct `fig.savefig(..._story.png)` in `real_run.py`. The notebook's embedded copies are what a reader without the repo sees.
 - Phases 0-9 done, three follow-up extensions, plus the spec-adherence pass. Only `narrate.py`
   remains a stub (optional).
 

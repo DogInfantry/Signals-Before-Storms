@@ -12,11 +12,12 @@ equity, cash and gold using per-regime convex optimization, validated with a lea
 walk-forward backtest.** It runs on Indian markets (NIFTY 50, GOLDBEES, LIQUIDBEES, India VIX) as
 the primary universe and US markets (SPY, TLT, GLD, VIX) as an out-of-sample robustness check.
 
-> **The honest headline: the regime overlay does not beat a simple 60/40 or equal-weight portfolio
-> on risk-adjusted return.** It does cut maximum drawdown by roughly two thirds on Indian data. This
-> repository is published as a *rigorous negative result with a diagnosis*, not as a winning
-> strategy, and it documents its own retracted finding. Full reasoning in
-> [The finding](#the-finding).
+> **The honest headline: the regime overlay never separates from a simple 60/40 or equal-weight
+> portfolio on risk-adjusted return.** Its Sharpe edge on India sits inside the noise, with every
+> paired confidence interval against both benchmarks spanning zero. It does cut maximum drawdown by
+> roughly two thirds on Indian data. This repository is published as a *rigorous negative result
+> with a diagnosis*, not as a winning strategy, and it documents its own retracted finding. Full
+> reasoning in [The finding](#the-finding).
 
 ![The whole result in four panels](docs/img/india_story.png)
 
@@ -34,7 +35,7 @@ the benchmark's worst loss (bottom right).
 | Question | Answer |
 |---|---|
 | **What does it do?** | Detects 3 hidden market regimes with an HMM, switches portfolio weights per regime via convex optimization |
-| **Does the strategy work?** | No. It does not beat 60/40 or equal weight on Sharpe. It *does* cut max drawdown from -23.7% to -6.2% on India |
+| **Does the strategy work?** | No. No book separates from 60/40 or equal weight on Sharpe once the comparison uses a paired difference test, and every interval spans zero. It *does* cut max drawdown from -23.7% to -6.2% on India |
 | **Why does it fail?** | The HMM finds **volatility** states, not **direction** states. Realized volatility is symmetric in sign and cannot tell a crash from a rebound |
 | **Is the backtest leak-proof?** | Yes, and asserted by unit tests: causal features, train-only scaling, per-fold refit, causal decode, 1-day execution lag |
 | **Are the results deflated?** | Yes. Deflated Sharpe at an honest 7-trial count, plus stationary-bootstrap confidence intervals |
@@ -156,9 +157,10 @@ SPY / TLT / GLD / ^VIX, out-of-sample 2016-07-05 to 2023-12-29, n = 1,886, rf = 
 | HMM, regime-conditional | 4.9% | 9.6% | 0.542 | 0.765 | -28.7% | 0.170 | 4.19x | 0.486 |
 | HMM, unconditional | 4.8% | 9.6% | 0.535 | 0.758 | -27.4% | 0.174 | 2.74x | 0.478 |
 
-**The US does not reproduce India, and saying so is the point of running it.** Here the strategy
-loses outright on every metric, including the two that vindicated it on India. Minimum variance had
-nowhere to hide in 2022, when bonds fell alongside equities. A result that held on one market and
+**The US does not reproduce India, and saying so is the point of running it.** No HMM book improves
+on either benchmark on Sharpe or Calmar, and the drawdown protection that vindicated the overlay on
+India does not reappear: the best HMM drawdown is level with 60/40 and well behind equal weight at
+-23.0%. Minimum variance had nowhere to hide in 2022, when bonds fell alongside equities. A result that held on one market and
 was quietly assumed to hold on the other would be the more comfortable story. It is not the one the
 data tells.
 
@@ -334,8 +336,9 @@ tuned positive with an unexamined one. The diagnosis here (volatility states car
 information) is a reusable finding that generalizes beyond this codebase.
 
 **Can I use this for live trading?**
-No. This is research and educational code, and the headline finding is that the strategy
-underperforms simple benchmarks. See [Disclaimer](#disclaimer).
+No. This is research and educational code, and the headline finding is that the strategy does not
+separate from simple benchmarks on risk-adjusted return, and underperforms them outright on the US
+universe. See [Disclaimer](#disclaimer).
 
 **What markets and data does it use?**
 India (primary): NIFTY 50 (^NSEI), GOLDBEES.NS, LIQUIDBEES.NS, India VIX (^INDIAVIX). US
@@ -351,7 +354,7 @@ git clone https://github.com/DogInfantry/Signals-Before-Storms.git
 cd Signals-Before-Storms
 uv sync --extra jump
 uv run pytest -q                            # 46 tests
-uv run python notebooks/real_run.py india   # primary universe, 14 figures
+uv run python notebooks/real_run.py india   # primary universe, 15 figures
 uv run python notebooks/real_run.py us      # robustness universe
 ```
 
@@ -362,7 +365,7 @@ The first run downloads prices from Yahoo and caches them under `data/`; every l
 and deterministic. India is the default because it is the graded universe.
 
 `notebooks/driver.ipynb` runs the same pipeline India-first with the full narrative and the US as a
-robustness section, committed with all outputs and 14 figures embedded. Re-execute in place with:
+robustness section, committed with all outputs and 15 figures embedded. Re-execute in place with:
 
 ```bash
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
@@ -380,7 +383,7 @@ src/regime_shift/
   backtest.py     shared cost engine, execution lag, sensitivity sweep
   metrics.py      Sharpe/Sortino/Calmar, deflated Sharpe, paired bootstrap
   benchmarks.py   60/40, equal weight, no-HMM volatility ablation
-  plots.py        14 figure helpers
+  plots.py        16 figure helpers
 config/config.yaml  every knob: universe, dates, windows, costs, seed
 notebooks/          top-to-bottom driver script and notebook
 tests/              46 tests, leak-proofing and metric checks
@@ -428,14 +431,14 @@ parameter sweep: it reports a surface and adopts nothing.
 
 ## Figures
 
-Fourteen per universe, written to `results/` by the driver and embedded in the notebook. Six are
+Fifteen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
 committed under `docs/img/` for this README.
 
-`returns` (raw daily returns with log-count marginals) · `feature_sanity` (vol_21 and VIX with COVID
-and 2022 shaded) · `label_profile` (the central finding) · `episode_bars` (effective sample size) ·
-`weight_stack` · `regime_weights` · `gross_vs_net` (compounding cost wedge) · `sharpe_forest` ·
-`rolling_sharpe` · `sensitivity` · `bic_curve` · `regime_overlay` · `equity_drawdown` ·
-`transition_heatmap`
+`story` (the 2x2 composite this README opens with) · `returns` (raw daily returns with log-count
+marginals) · `feature_sanity` (vol_21 and VIX with COVID and 2022 shaded) · `label_profile` (the
+central finding) · `episode_bars` (effective sample size) · `weight_stack` · `regime_weights` ·
+`gross_vs_net` (compounding cost wedge) · `sharpe_forest` · `rolling_sharpe` · `sensitivity` ·
+`bic_curve` · `regime_overlay` · `equity_drawdown` · `transition_heatmap`
 
 ## Tech stack
 
@@ -461,7 +464,8 @@ redistributed here.
 ## Disclaimer
 
 Research and educational code. Nothing here is investment advice, and none of these results are a
-recommendation to trade. The headline finding is that the strategy underperforms simple benchmarks.
+recommendation to trade. The headline finding is that the strategy does not separate from simple
+benchmarks on risk-adjusted return, and underperforms them outright on the US universe.
 
 ---
 
