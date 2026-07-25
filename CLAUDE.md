@@ -350,15 +350,47 @@ hmm_unconditional CI `( 0.011, 1.469)` / DSR 0.697 while the code produces `( 0.
 DSR 0.698, **on the pre-change code too**. That is pre-existing doc staleness, not a regression.
 
 **Notebook re-rendered against the new figures** (58 cells, 0 errors, 15 embedded figures,
-verified by parsing the ipynb JSON). Nothing is in flight.
+verified by parsing the ipynb JSON). Nothing is in flight, tree clean, 7 commits ahead of `main`
+and UNPUSHED.
 
-**The only thing left is outward-facing and needs an explicit go-ahead: pushing this branch,
-and the repo topics in step 2 below.**
+## THE NEXT TASK, and it is a real defect, not polish
+
+**`docs/index.html` is 2,826 words, about 12.8 minutes of reading. `PRODUCT.md:11-13` and :50-51
+define the reader as "a recruiter or a hiring quant" who has "under a minute" and is "often on a
+phone". The page overshoots its own written brief by roughly 13x.** Measure it, do not eyeball it:
+
+```
+uv run python -c "import re,pathlib; s=pathlib.Path('docs/index.html').read_text(encoding='utf-8'); b=s[s.index('<body'):]; t=re.sub(r'<[^>]+>',' ',re.sub(r'<script.*?</script>|<style.*?</style>','',b,flags=re.S)); w=len(re.sub(r'\s+',' ',t).split()); print(w,'words,',round(w/220,1),'min')"
+```
+
+This is the SAME defect class as everything else this repo has been fixing: a claim the artifact
+disproves. PRODUCT.md declares a sub-minute reader; index.html serves an essay. The user has now
+said so twice, in their words: the deploy "should be beautiful, elegant, great and not just direct
+pasting of pngs and jpegs", and the output is "too texty and text heavy".
+
+Phase 4 (`e892f81`) genuinely improved the page (cut 3 sections, killed the raw-PNG links, SVG
+plates, mobile stack, reframed the rescue stamps) but it TRIMMED a longform log rather than
+rethinking the form. 283 words per image across 9 sections, 6 tables and 10 images. The structure
+is still "read my essay", and that is what has to change.
+
+**Do NOT delete the rigor to hit the word count.** The retraction, the pre-registered criteria, the
+paired test and the episode counting ARE the deliverable and are what make this hireable. The move
+is PROGRESSIVE DISCLOSURE: a genuinely sub-minute top layer that stands alone (verdict, the one
+composite figure, three or four numbers), with everything currently on the page still present
+underneath but collapsed behind `<details>` or moved to a second page. A reader who wants the
+17.2-vs-3-units story should still find it; they should not have to scroll past it to reach the
+verdict. `<details>`/`<summary>` is native HTML, needs no JS and no build step, which suits the
+Vercel preset `Other` with Root Directory `docs`.
+
+Suggested target: top layer under 250 words to first meaningful figure, whole page under about
+900 words visible-by-default. Re-measure with the command above rather than trusting a feeling.
 
 ## Next steps
-1. **DONE 2026-07-25 (`1b24a43`): the notebook is regenerated.** Kept here as the regeneration
-   recipe, not as an open task. **NOTE: Phases 2-4 change every figure, so the notebook must be
-   re-rendered again once they land.** Two commands, the first only if the generator changed:
+0. **CUT THE PAGE DOWN. See "THE NEXT TASK" above.** This is the only thing the user is actively
+   asking for. Progressive disclosure, keep every fact, do not delete the rigor.
+1. **DONE 2026-07-26 (`e39cf36`): the notebook is regenerated against the redesigned figures.**
+   Kept here as the regeneration recipe, not as an open task. Two commands, the first only if the
+   generator changed:
    ```
    uv run python "C:/Users/Anklesh/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py"
    uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
@@ -370,8 +402,9 @@ and the repo topics in step 2 below.**
    ```
    gh repo edit DogInfantry/Signals-Before-Storms --add-topic quantitative-finance,hidden-markov-model,regime-detection,asset-allocation,backtesting,python,cvxpy,hmmlearn,walk-forward-validation,portfolio-optimization
    ```
-3. **Nothing else is required.** Phases 0-11 are done and pushed. Stopping here is legitimate: the
-   deliverable is a rigorous negative result, diagnosed, with its own retraction documented.
+3. **The research is finished and stopping there is legitimate**: the deliverable is a rigorous
+   negative result, diagnosed, with its own retraction documented. Phases 0-11 plus the four-phase
+   visual pass are done. What remains is presentation (step 0) and outward-facing publication.
 4. Phase 11 flagged ONE caveat worth remembering: `weight_cap=0.6` and `rebalance_confirm_days=3`
    are each at or near a local Sharpe optimum in the sweep. Both were fixed before any result was
    computed and neither was re-chosen, and the README says so plainly rather than hiding it. If a
