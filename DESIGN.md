@@ -80,6 +80,17 @@ typography:
     fontSize: "11px"
     fontWeight: 400
     note: "SVG user units inside the 420-unit pipeline viewBox, not a page-level step. The diagram is capped at 26rem so this resolves near 12.9px on screen, below body."
+  stat-figure:
+    fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace"
+    fontSize: "clamp(1.4rem, 1.1rem + 1.1vw, 1.9rem)"
+    fontWeight: 400
+    lineHeight: 1.1
+    note: "The instrument panel's four hero numbers, and the only step between Headline and Title. A stat tile is read as a quantity before it is read as text, so the figure has to outrank the label above it. Tabular numerals keep the four tiles aligned as the market toggle swaps their values."
+  chart-tick:
+    fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace"
+    fontSize: "10px"
+    fontWeight: 400
+    note: "SVG user units inside the 760-unit chart viewBox, not a page-level step: the same carve-out as diagram-sublabel. Axis ticks, bar labels and forest labels drawn by site.js. It matches the tick size matplotlib draws in the committed figures, which is the point, because the live charts and the static plates have to read as one system."
 rounded:
   hairline: "2px"
   control: "3px"
