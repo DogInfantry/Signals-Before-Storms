@@ -142,10 +142,23 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   (R2: raw returns + log-count marginals), `feature_sanity` (R6: vol_21/vix with stress shaded),
   `gross_vs_net` (C4 visual), `weight_stack` (regime ribbon ABOVE the stack so it never hides a
   weight), `label_profile_bars`, `bic_curve`, `sharpe_forest`, `episode_bars`, `regime_weight_heatmap`,
-  `rolling_sharpe`, `sensitivity_panel`. All take/return an axis (or an array
+  `rolling_sharpe`, `sensitivity_panel`, `paired_forest` (Sharpe DIFFERENCE vs one benchmark with
+  its paired interval, zero marked: a different question from `sharpe_forest`, which only asks
+  whether a book beats zero), and `story_panel` (the 2x2 composite that is the README hero:
+  label profile, episode bars, paired forest, drawdown comparison; returns a FIGURE, not an axis,
+  so the caller saves it directly). All the rest take/return an axis (or an array
   of them); caller saves. `real_run.save()` handles either shape.
+- `src/regime_shift/style.py`: THE single source of chart style. `use_house_style()` sets rcParams
+  and is called at `plots.py` import time, so importing plots is enough. Exports `REGIME_RAMP`,
+  `SERIES_A`/`SERIES_B`, ink/surface constants, and helpers `pct_axis`, `callout`, `bar_labels`,
+  `subtitle`. **Palettes here were validated by a contrast/CVD script, not chosen by eye**, which
+  caught a real defect in the previously shipped palette: the Bear amber `#f9a825` sat at 1.92:1
+  contrast (floor 3:1) and green/amber/red separates by only ~3 CVD units where 8 is the floor.
+  Regimes now use a LIGHTNESS RAMP because they are ordinal; that encodes the ordering and survives
+  colour blindness. `plots.REGIME_COLORS` is an alias of `REGIME_RAMP`, so nothing downstream broke.
+  If you add a palette, validate it rather than picking hexes.
 - `src/regime_shift/narrate.py`: STUB. Optional LLM narration, report-only. Never implemented.
-- `tests/` (45 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+- `tests/` (46 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
   `test_features` 2 (the fixture carries ALL FOUR asset roles and asserts no `*_ret` reaches the
   feature matrix), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
   engine via importorskip, label_episodes run counting incl. leading/trailing single-day runs), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 7 (1-day lag
@@ -155,10 +168,10 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 - `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
   **defaulting to india**. Requests macro explicitly and PRINTS whether it landed (the module
   silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
-  label tables, BOTH gross and net scorecards, and the deflation table; writes 14 figures to
+  label tables, BOTH gross and net scorecards, and the deflation table; writes 15 figures to
   `results/`. matplotlib Agg, no display needed.
 - `notebooks/driver.ipynb`: 56 cells, India-primary (`MARKET = "india"` in the config cell),
-  executes clean with 14 embedded figures and a US robustness section at the end. Threads
+  executes clean with 14 embedded figures (STALE: pre-style, see Next Steps) and a US robustness section at the end. Threads
   `rf` into every `summary` call. Regenerate: `uv run papermill notebooks/driver.ipynb
   notebooks/driver.ipynb --kernel python3`. Generator script lives in the session scratchpad, not
   the repo; edit the notebook in place or regenerate from that script.
@@ -171,7 +184,7 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 
 ## Current state
 - **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
-- 45 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- 46 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
 - Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**
   (re-probed 2026-07-24: ReadTimeout), so both entry points request macro, warn, and continue.
@@ -298,32 +311,55 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight. Clean stopping point.** Phase 11 landed 2026-07-25: paired difference tests
-(which corrected an invalid overlapping-marginal-CI inference), sub-period stability, a parameter
-sensitivity surface, and 3 new figures. 45 tests green, ruff clean, US bit-identical.
+**Nothing in flight, but ONE artifact is knowingly stale: `notebooks/driver.ipynb`.** See Next
+step 1. Everything else is committed, pushed, tree clean, 46 tests green, ruff clean.
 
-Earlier, two passes landed 2026-07-24 and both are pushed:
-(1) spec-adherence (gross-vs-net, real India 60/40, India-primary notebook, 7 new figures,
-`cash_ret` fix), (2) Phase 10 effective sample size (`label_episodes`, `episode_profile`,
-`episode_bars`, dual CIs) plus the retraction of the jump directional-state claim. 42 tests green,
-ruff clean.
+Five commits landed 2026-07-25, all pushed:
+- `ffd1de5` spec-adherence: `cash_ret` feature fix, real India 60/40 (cash leg), gross+net
+  scorecards, India-primary notebook, 7 new figures.
+- `f4938ac` Phase 10 effective sample size: `label_episodes`, `episode_profile`, `episode_bars`,
+  dual CIs, plus the retraction of the jump directional-state claim.
+- `321bb0a` Phase 11: `paired_bootstrap` (corrected an invalid overlapping-marginal-CI inference),
+  `subperiod_summary`, `sensitivity_sweep`, 3 figures.
+- `875975e` README rewritten for discoverability; 6 figures committed under `docs/img/`.
+- `5bfb6b6` figure design pass: new `style.py` with a validated palette, redesigned
+  `label_profile_bars` (draws the expected slope beside the measured one), new `story_panel` and
+  `paired_forest`, README leads with the composite.
 
 ## Next steps
-1. **Nothing is required.** Phases 0-11 are done and pushed. Stopping here is legitimate: the
+1. **DO THIS FIRST: regenerate `notebooks/driver.ipynb`.** It is the ONLY stale artifact. It is 56
+   cells with 14 embedded figures that were rendered BEFORE the `style.py` design pass, so the
+   committed notebook still shows the old raw-matplotlib charts (and the old amber that fails
+   contrast) while the README shows the new designed ones. Nothing is wrong with the numbers; only
+   the images and the missing `story_panel` section are out of date. Two commands:
+   ```
+   uv run python "C:/Users/Anklesh/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py"
+   uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
+   ```
+   Then confirm 0 errors and that the embedded figure count went 14 -> 15, and commit.
+   **The generator is NOT in the repo by design; the durable copy is the memory-dir path above.**
+   Optionally add a `story_panel` cell to it first (see `notebooks/real_run.py` for the call, which
+   needs `paired_vs["60_40"]` and a `{book: max_drawdown}` dict).
+2. **GitHub repo topics are still empty**, which is the largest remaining discoverability gap.
+   Outward-facing, so it needs an explicit go-ahead:
+   ```
+   gh repo edit DogInfantry/Signals-Before-Storms --add-topic quantitative-finance,hidden-markov-model,regime-detection,asset-allocation,backtesting,python,cvxpy,hmmlearn,walk-forward-validation,portfolio-optimization
+   ```
+3. **Nothing else is required.** Phases 0-11 are done and pushed. Stopping here is legitimate: the
    deliverable is a rigorous negative result, diagnosed, with its own retraction documented.
-2. Phase 11 flagged ONE caveat worth remembering: `weight_cap=0.6` and `rebalance_confirm_days=3`
+4. Phase 11 flagged ONE caveat worth remembering: `weight_cap=0.6` and `rebalance_confirm_days=3`
    are each at or near a local Sharpe optimum in the sweep. Both were fixed before any result was
    computed and neither was re-chosen, and the README says so plainly rather than hiding it. If a
    future session ever changes a default, it owes a DSR trial.
-3. Phase 10 is DONE. Its lesson generalizes: before believing any regime result, count episodes
+5. Phase 10 is DONE. Its lesson generalizes: before believing any regime result, count episodes
    and drop the largest. That check retracted this project's own apparent discovery.
-3. Beyond that the evidence still points at a **directional state variable**: credit spreads
+6. Beyond that the evidence still points at a **directional state variable**: credit spreads
    (FRED `BAA10Y`, now genuinely requested by both entry points, but FRED is blocked on this
    network so it needs a different network or a vendor), market breadth, earnings revisions or
    positioning. Realized vol and VIX are symmetric in sign and provably cannot supply direction.
    NOTE the DSR budget is nearly spent: at 7 trials any new variant needs a materially larger raw
    Sharpe just to hold its ground.
-4. **CONSIDERED AND DECLINED on 2026-07-24. Not novel, do not propose as new.** Both were weighed
+7. **CONSIDERED AND DECLINED on 2026-07-24. Not novel, do not propose as new.** Both were weighed
    against the DSR budget (7 trials spent) and the user chose rigor-only:
    - *Stance-map test*: if states predict variance and not direction, the correct use is SIZING,
      not DE-RISKING. Replace the discrete Bull/Bear/Crisis map with inverse-variance scaling of a
@@ -333,24 +369,31 @@ ruff clean.
    - *Signed-feature test*: semivariance ratio and rolling realized skew, which unlike volatility
      are asymmetric in sign, so they can in principle tell a crash from a rebound. Derivable from
      cached data, needs no FRED. Would be trial 9.
-5. `narrate.py` is still a stub, explicitly optional, lowest research value of anything left.
-6. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears.
-7. Nice-to-have polish: `uv run pre-commit install` (configured but NOT installed, so nbstripout
+8. `narrate.py` is still a stub, explicitly optional, lowest research value of anything left.
+9. India still has no true duration sleeve. Revisit only if a better vendor than Yahoo appears.
+10. Nice-to-have polish: `uv run pre-commit install` (configured but NOT installed, so nbstripout
    never runs and the committed notebook keeps its outputs, which is what you want for a portfolio
    repo, since `results/` is gitignored and the embedded figures are all a reader gets).
 
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 45 tests
+uv run pytest -q              # 46 tests
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
-uv run python notebooks/real_run.py india          # PRIMARY: full run + 10 figures
+uv run python notebooks/real_run.py india          # PRIMARY: full run + 15 figures
 uv run python notebooks/real_run.py us             # robustness; must stay bit-identical
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 ```
 
 ## Gotchas
+- **`notebooks/driver.ipynb` is GENERATED, and the generator is not in the repo.** Durable copy:
+  `~/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py`. It was
+  originally written to a SESSION-scoped scratchpad, which a new session cannot reach, so it was
+  copied to the memory dir on 2026-07-25. Edit the notebook in place with NotebookEdit for prose
+  (that preserves embedded figures), or regenerate from the script and re-run papermill (that wipes
+  and rebuilds every output, ~5 min). Editing the notebook without also editing the generator means
+  the next regeneration silently reverts your change.
 - **DEV DEPS LIVE IN ONE PLACE: `[dependency-groups] dev`.** There used to ALSO be a `dev` extra
   under `[project.optional-dependencies]`, and `uv sync --dev` installs the GROUP, so CI got
   ipykernel and no ruff/pytest and failed every push (unable to spawn ruff). Do not re-add a dev
