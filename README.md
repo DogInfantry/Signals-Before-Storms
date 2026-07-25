@@ -352,8 +352,8 @@ universe. See [Disclaimer](#disclaimer).
 
 **What markets and data does it use?**
 India (primary): NIFTY 50 (^NSEI), GOLDBEES.NS, LIQUIDBEES.NS, India VIX (^INDIAVIX). US
-(robustness): SPY, TLT, GLD, ^VIX. Data comes from Yahoo Finance via `yfinance`, plus optional FRED
-macro series. 2015-2023, daily.
+(robustness): SPY, TLT, GLD, ^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from
+FRED where it is reachable and a Yahoo credit-spread proxy where it is not. 2015-2023, daily.
 
 ---
 
@@ -363,9 +363,10 @@ macro series. 2015-2023, daily.
 git clone https://github.com/DogInfantry/Signals-Before-Storms.git
 cd Signals-Before-Storms
 uv sync --extra jump
-uv run pytest -q                            # 46 tests
-uv run python notebooks/real_run.py india   # primary universe, 16 figures
+uv run pytest -q                            # 67 tests
+uv run python notebooks/real_run.py india   # primary universe, 17 figures
 uv run python notebooks/real_run.py us      # robustness universe
+uv run python tools/export_site_data.py all # refresh the data the site draws from
 ```
 
 The `jump` extra pulls `jumpmodels` for the second regime engine. Without it the pipeline still runs
@@ -375,7 +376,7 @@ The first run downloads prices from Yahoo and caches them under `data/`; every l
 and deterministic. India is the default because it is the graded universe.
 
 `notebooks/driver.ipynb` runs the same pipeline India-first with the full narrative and the US as a
-robustness section, committed with all outputs and 15 figures embedded. Re-execute in place with:
+robustness section, committed with all outputs and every figure embedded. Re-execute in place with:
 
 ```bash
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
@@ -383,9 +384,18 @@ uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 
 ## Layout
 
+There is also an interactive version of the results. `docs/` is a static site with no build step:
+`index.html` is a one-screen panel where the equity curves, drawdowns, regime bands, scorecard and
+paired-difference test are all live, so a reader can toggle books, switch gross against net of
+costs, and switch India against the US rather than take a screenshot's word for it. `story.html`
+carries the full research log. `tools/export_site_data.py` writes the JSON it reads, using the same
+functions that print the scorecard, so the page cannot drift from the tables above. Serve it with
+`python -m http.server --directory docs`; opening the file directly will not work, because `fetch`
+is blocked on the `file://` origin.
+
 ```
 src/regime_shift/
-  data.py         yfinance + FRED loading, vendor-error guard
+  data.py         yfinance + FRED loading, credit proxies, vendor-error guard
   features.py     causal momentum / realized vol / VIX features
   regime.py       RegimeModel (HMM or Jump), canonical labels, episodes
   walkforward.py  expanding splits, train-only scaling, causal decode
@@ -396,8 +406,9 @@ src/regime_shift/
   plots.py        16 figure helpers
 config/config.yaml  every knob: universe, dates, windows, costs, seed
 notebooks/          top-to-bottom driver script and notebook
-tests/              46 tests, leak-proofing and metric checks
-docs/img/           figures used in this README
+tests/              67 tests, leak-proofing, metric and palette checks
+tools/              palette validator, site data exporter
+docs/               static site: interactive panel, research log, figures, exported JSON
 ```
 
 ## Why the key decisions
@@ -407,10 +418,21 @@ docs/img/           figures used in this README
   (a clear elbow at three: the 3 to 4 step buys only 392 of fit against 6,256 for 2 to 3) and does
   not support it on the US. Both are reported.
 - **These features:** multi-window momentum (direction), realized volatility (stress), VIX level and
-  its daily change, plus a small set of FRED macro series requested at both entry points. **Every
-  number published here was produced without macro columns**, because `fred.stlouisfed.org` is
-  unreachable from the network this was run on. The loader requests the series, warns, and continues;
-  both entry points print `landed=NONE` so the situation is visible rather than implied.
+  its daily change. Nine columns per universe, and **deliberately no macro among them**. Macro is
+  loaded, plotted and interpreted, but it is kept out of the model on purpose: `build_features`
+  promotes any column that is not an asset return and not VIX into a state variable, so wiring macro
+  in would widen the feature matrix, move every number here, and spend a deflated-Sharpe trial. It
+  is measured and left out, which is what declaring a trial count in advance is for.
+- **Macro comes from Yahoo, because FRED does not answer here.** FRED is the source the brief names
+  and `data.load_macro` requests it first, keylessly. On this network `fred.stlouisfed.org` times out
+  from `requests` even where other hosts return 200, and DBnomics does not mirror the FRED provider
+  at all, so the fallback is `data.load_credit_proxies`: a corporate bond fund measured against a
+  Treasury fund of similar duration is a credit spread expressed in prices, from the one vendor that
+  does respond. Both entry points print which leg landed. The proxy earns its place by separating
+  two episodes realized volatility cannot tell apart: through the COVID crash the high-yield spread
+  widens +0.284, and through the 2022 rates selloff it moves -0.025, the other way, while volatility
+  rises in both. That signed behaviour is exactly what VIX and realized volatility provably cannot
+  supply, and it is the shape any future directional state variable would need.
 - **Only equity drives the regime.** The state is a property of the market being timed, not of the
   sleeves used to express the view. This was a live bug: `cash_ret` was missing from the exclusion
   list, so India silently fitted a 10th feature the US never saw, which broke the like-for-like
@@ -441,14 +463,15 @@ parameter sweep: it reports a surface and adopts nothing.
 
 ## Figures
 
-Fifteen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
+Sixteen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
 committed under `docs/img/` for this README.
 
 `story` (the 2x2 composite this README opens with) · `returns` (raw daily returns with log-count
 marginals) · `feature_sanity` (vol_21 and VIX with COVID and 2022 shaded) · `label_profile` (the
 central finding) · `episode_bars` (effective sample size) · `weight_stack` · `regime_weights` ·
 `gross_vs_net` (compounding cost wedge) · `sharpe_forest` · `rolling_sharpe` · `sensitivity` ·
-`bic_curve` · `regime_overlay` · `equity_drawdown` · `transition_heatmap`
+`bic_curve` · `regime_overlay` · `equity_drawdown` · `transition_heatmap` · `macro_spread` (the
+credit spread under the same regimes, the one signed variable in the project)
 
 ## Tech stack
 

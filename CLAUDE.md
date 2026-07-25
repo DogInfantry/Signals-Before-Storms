@@ -71,8 +71,11 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   EMPTY, `india.cash: LIQUIDBEES.NS` is the defensive sleeve instead (see data quality below).
 - `src/regime_shift/config.py`: typed pydantic loader, `load_config() -> Config`.
 - `src/regime_shift/data.py`: `load_prices` (yfinance + pickle cache), `load_macro` (keyless FRED
-  CSV), `drop_return_outliers` (vendor-error guard, see landmine), `build_master` (log returns +
-  vix + causal 1-day-lagged macro; warns and continues if FRED unreachable). `_ASSET_ROLES =
+  CSV), `load_credit_proxies` (Yahoo fallback: `-log(credit/duration)` for IG and HY, negated so up
+  means wider, plus `y10`; reuses `load_prices`, so it caches the same way),
+  `drop_return_outliers` (vendor-error guard, see landmine), `build_master` (log returns +
+  vix + causal 1-day-lagged macro; warns and continues if FRED unreachable). **Entry points call
+  `build_master` WITHOUT the macro argument on purpose; see Current state.** `_ASSET_ROLES =
   (equity, bond, cash, gold)`. Master cols: `equity_ret[/bond_ret][/cash_ret]/gold_ret`, `vix`.
 - `src/regime_shift/features.py`: `add_momentum` (rolling SUM of equity_ret = log momentum),
   `add_realized_vol` (rolling std * sqrt252), `build_features(master, cfg, drawdown=False)` ->
@@ -158,21 +161,30 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   colour blindness. `plots.REGIME_COLORS` is an alias of `REGIME_RAMP`, so nothing downstream broke.
   If you add a palette, validate it rather than picking hexes.
 - `src/regime_shift/narrate.py`: STUB. Optional LLM narration, report-only. Never implemented.
-- `tests/` (46 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
-  `test_features` 2 (the fixture carries ALL FOUR asset roles and asserts no `*_ret` reaches the
-  feature matrix), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
+- `tools/validate_palette.py`: the contrast / CVD / hue validator behind `tests/test_style.py`.
+- `tools/export_site_data.py`: `uv run python tools/export_site_data.py [india|us|all]` ->
+  `docs/data/<market>.json`. Re-runs the pipeline and serializes curves, drawdowns, run-length
+  regime spans, both scorecards, deflation, paired differences, label and episode profiles, the
+  transition matrix and mean weights per regime. Curves are strided WEEKLY for payload size; every
+  statistic is still computed daily. **Re-run it after anything that moves a number**, or the site
+  and the README disagree.
+- `tests/` (67 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+  `test_style` (palette floors), `test_features` 3 (the fixture carries ALL FOUR asset roles,
+  asserts no `*_ret` reaches the feature matrix, and pins the 9-column model matrix against macro
+  widening it), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
   engine via importorskip, label_episodes run counting incl. leading/trailing single-day runs), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 7 (1-day lag
   by flipping a future label, flat-then-entry, conditional moments + fallback, target_vol,
   zero-turnover-is-free), `test_metrics` 13 (episode_profile ex-largest, paired pairing + CI brackets its point estimate, subperiod partition), `test_benchmarks` 6 (incl. cash sleeve and the 60/40
   cash-leg fallback), `test_data` 3.
 - `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
-  **defaulting to india**. Requests macro explicitly and PRINTS whether it landed (the module
-  silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
-  label tables, BOTH gross and net scorecards, and the deflation table; writes 16 figures to
-  `results/`. matplotlib Agg, no display needed.
-- `notebooks/driver.ipynb`: 58 cells, India-primary (`MARKET = "india"` in the config cell),
-  executes clean with 0 errors and 15 embedded figures, all post-`style.py`, and a US robustness
-  section at the end. Threads `rf` into every `summary` call. The 15th is the `story_panel`
+  **defaulting to india**. Builds the model master MACRO-FREE, then loads macro separately (FRED
+  first, Yahoo proxies on failure) and PRINTS which leg answered, because the module silences
+  warnings so a warning alone would be invisible. Scores 8 books, prints the label tables, BOTH
+  gross and net scorecards, the deflation table and the two-episode spread comparison; writes 17
+  figures to `results/`. matplotlib Agg, no display needed.
+- `notebooks/driver.ipynb`: 62 cells, India-primary (`MARKET = "india"` in the config cell),
+  executes clean with 0 errors, all figures post-`style.py`, a US robustness section and a
+  section 10 macro diagnostic. Threads `rf` into every `summary` call. The `story_panel`
   composite in section 7, the same hero the README leads with; the paired-bootstrap cell collects
   `paired_vs[bench][name] = (d, lo, hi)` so the composite can be built. Regenerate:
   `uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3` (~5 min).
@@ -181,21 +193,37 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   wins maxDD/Calmar, US loses outright), both scorecards gross and net with sortino and calmar,
   why-it-loses, the failed rescues, the figure inventory, data quality, deflation rationale,
   attribution terms.
+- `docs/`: the deployed static site, Vercel preset `Other` with Root Directory `docs`.
+  `index.html` is the interactive panel (748 words), `story.html` the full research log (2,684),
+  `site.js` the hand-built SVG charts, `style.css` the shared visual world, `data/*.json` the
+  exported results, `img/` the committed figures. No build step and no external request.
 - Build plan: kept outside the repo in the local Claude Code plans dir, deliberately not
   fetchable from a clone. README + this file carry everything needed to resume.
 
 ## Current state
 - **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
-- 46 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- 67 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
-- Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is blocked on this network**
-  (re-probed 2026-07-24: ReadTimeout), so both entry points request macro, warn, and continue.
-  Every published number is macro-free and both entry points print `landed=NONE` to say so.
+- Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is still blocked from Python
+  on this network** (re-probed 2026-07-26: ReadTimeout at 25s from `requests`, even though `curl`
+  through a different path gets 200; DBnomics does NOT mirror the FRED provider, measured, so it is
+  not a fallback). Macro now lands via `data.load_credit_proxies` (Yahoo LQD/HYG/IEF/^TNX) and both
+  entry points print which leg answered.
+- **MACRO IS DIAGNOSTIC ONLY AND THE MODEL MASTER IS BUILT MACRO-FREE ON PURPOSE (2026-07-26).**
+  `build_features` promotes any column that is not an asset return and not `vix` into a state
+  variable, so the old `build_master(..., cfg.macro_fred_series)` calls in both entry points were a
+  loaded gun: the day macro landed, every published number would have moved and the DSR trial count
+  would have been wrong. Entry points now build the model master WITHOUT macro and load macro
+  separately.
+  `tests/test_features.py::test_macro_widens_the_matrix_so_the_model_master_must_exclude_it` pins
+  both the 9-column matrix and the widening mechanism. Verified by re-running BOTH universes after
+  the change: every number matches the published tables below.
   US master 2263x4 (2015-01-02..2023-12-29), India master 2191x4 (equity/cash/gold/vix).
   Feature matrices are 9 columns on BOTH universes now (was 10 on India, see landmine 4).
-- 32 figures in `results/` (gitignored): `{india,us}_{story,returns,feature_sanity,label_profile,episode_bars,paired_forest,
+- 34 figures in `results/` (gitignored): `{india,us}_{story,returns,feature_sanity,label_profile,episode_bars,paired_forest,
   weight_stack,gross_vs_net,sharpe_forest,bic_curve,regime_overlay,equity_drawdown,
-  transition_heatmap,regime_weights,rolling_sharpe,sensitivity}.png`. That is 16 per universe.
+  transition_heatmap,regime_weights,rolling_sharpe,sensitivity,macro_spread}.png`. That is 17 per
+  universe; `macro_spread` is written only when a macro leg answers.
   Six of them (`story,label_profile,episode_bars,paired_forest,regime_weights,sensitivity`) ALSO
   write an `.svg`, listed in `real_run.SITE_FIGURES`, because those are what `docs/` embeds and
   vector text stays sharp on a phone. `regime_overlay` and `equity_drawdown` are deliberately
@@ -319,9 +347,20 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**The four-phase visual-integrity pass is DONE. All four phases committed on the worktree branch
-`claude/sleepy-villani-42671c`, NOT pushed.** Tree clean, 65 tests green, ruff clean.
+**Nothing in flight.** The visual-integrity pass, the macro leg and the interactive site are all
+committed on `main`. The worktree branch `claude/sleepy-villani-42671c` was fast-forward merged
+into `main` on 2026-07-26 and its worktree removed (the directory could not be deleted, permission
+denied, but git no longer tracks it: `git worktree list` shows only the main checkout).
+**NOTHING IS PUSHED.** `main` is many commits ahead of `origin/main` and needs an explicit
+go-ahead, as do the repo topics.
 
+Landed 2026-07-26:
+- `cef41cb` macro leg: `load_credit_proxies`, macro-free model master, the widening-guard test.
+- `3df73b9` interactive site: `tools/export_site_data.py`, `docs/data/*.json`, `docs/site.js`,
+  rebuilt `docs/index.html`, narrative moved to `docs/story.html`, CSS palette synced to the
+  validated ramp.
+
+Earlier, on the now-merged branch:
 - `b022350` Phase 1: corrected claims the repo's own tables contradict.
 - `3bdd4f8` recorded the pass state here.
 - `54e4daa` Phase 2: `tools/validate_palette.py` + `tests/test_style.py`. See the palette section
@@ -353,11 +392,32 @@ DSR 0.698, **on the pre-change code too**. That is pre-existing doc staleness, n
 verified by parsing the ipynb JSON). Nothing is in flight, tree clean, 7 commits ahead of `main`
 and UNPUSHED.
 
-## THE NEXT TASK, and it is a real defect, not polish
+## THE SITE, and the defect that was fixed on 2026-07-26
 
-**`docs/index.html` is 2,826 words, about 12.8 minutes of reading. `PRODUCT.md:11-13` and :50-51
-define the reader as "a recruiter or a hiring quant" who has "under a minute" and is "often on a
-phone". The page overshoots its own written brief by roughly 13x.** Measure it, do not eyeball it:
+**DONE. `docs/index.html` was 2,826 words (12.8 min) against `PRODUCT.md`'s "under a minute, often
+on a phone" brief, a ~13x overshoot. It is now 748 words, 177 of them before the first live
+chart.** The fix was NOT deletion and NOT `<details>`: the prose moved intact to `docs/story.html`
+and the landing page was rebuilt as an INSTRUMENT PANEL over real exported results.
+
+- `tools/export_site_data.py` -> `docs/data/{india,us}.json` (74 kB / 78 kB), weekly-strided curves
+  but DAILY statistics, written by the SAME functions that print the scorecard, so the page cannot
+  drift from the README. Re-run it after any change that moves a number.
+- `docs/site.js` draws hand-built SVG: equity curves with regime bands and a hover readout,
+  drawdowns, label-profile bars, a paired forest, and a sortable scorecard. Toggles for 8 books,
+  gross/net, India/US, and which benchmark the paired test runs against. No framework, no build
+  step, no external request, so the Vercel preset stays `Other` with root `docs`.
+- Series colours reuse the two VALIDATED hues plus two neutrals, each solid and dashed. Do not add
+  a categorical palette for this without running `tools/validate_palette.py`.
+- `docs/style.css` carried the OLD FAILED ramp (`#e8b84b/#d2691e/#8f1d14`) until now; it is synced
+  to `#b8860b/#9e4310/#6b1210`. `--good`/`--bad` are aliases of the validated pair, kept only
+  because `story.html` marks up sign in several places.
+- **`fetch` does not work on `file://`.** Serve it: `python -m http.server --directory docs`.
+  `.claude/launch.json` has a `site` config on port 4321 (gitignored, does not ship).
+- Verified at 375px and desktop, light and dark: no horizontal overflow, contrast 4.25:1 and up in
+  dark, every interaction re-renders, and the four hero tiles match the published India table
+  (-6.2%, 1.16, 0.82, +0.22 spanning zero).
+
+To re-measure the word count, do not eyeball it:
 
 ```
 uv run python -c "import re,pathlib; s=pathlib.Path('docs/index.html').read_text(encoding='utf-8'); b=s[s.index('<body'):]; t=re.sub(r'<[^>]+>',' ',re.sub(r'<script.*?</script>|<style.*?</style>','',b,flags=re.S)); w=len(re.sub(r'\s+',' ',t).split()); print(w,'words,',round(w/220,1),'min')"
@@ -373,29 +433,23 @@ plates, mobile stack, reframed the rescue stamps) but it TRIMMED a longform log 
 rethinking the form. 283 words per image across 9 sections, 6 tables and 10 images. The structure
 is still "read my essay", and that is what has to change.
 
-**Do NOT delete the rigor to hit the word count.** The retraction, the pre-registered criteria, the
-paired test and the episode counting ARE the deliverable and are what make this hireable. The move
-is PROGRESSIVE DISCLOSURE: a genuinely sub-minute top layer that stands alone (verdict, the one
-composite figure, three or four numbers), with everything currently on the page still present
-underneath but collapsed behind `<details>` or moved to a second page. A reader who wants the
-17.2-vs-3-units story should still find it; they should not have to scroll past it to reach the
-verdict. `<details>`/`<summary>` is native HTML, needs no JS and no build step, which suits the
-Vercel preset `Other` with Root Directory `docs`.
-
-Suggested target: top layer under 250 words to first meaningful figure, whole page under about
-900 words visible-by-default. Re-measure with the command above rather than trusting a feeling.
+**The rigor was NOT deleted to hit the word count.** The retraction, the pre-registered criteria,
+the paired test and the episode counting ARE the deliverable and are what make this hireable. They
+all still exist, in `story.html`, linked from the masthead and from the body. If a future session
+trims further, trim `story.html` last.
 
 ## Next steps
-0. **CUT THE PAGE DOWN. See "THE NEXT TASK" above.** This is the only thing the user is actively
-   asking for. Progressive disclosure, keep every fact, do not delete the rigor.
-1. **DONE 2026-07-26 (`e39cf36`): the notebook is regenerated against the redesigned figures.**
+1. **DONE 2026-07-26: the notebook is regenerated against the macro section and the figures.**
    Kept here as the regeneration recipe, not as an open task. Two commands, the first only if the
    generator changed:
    ```
    uv run python "C:/Users/Anklesh/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py"
    uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
    ```
-   Verify 0 errors and 15 embedded figures by parsing the ipynb JSON, not by eye.
+   Verify 0 errors by parsing the ipynb JSON, not by eye. The generator gained a section 10 (the
+   macro leg) on 2026-07-26, and its data cell no longer passes macro to `build_master`.
+   **LANDMINE: the notebook has no `plt` in scope.** End a plotting cell with the axis, not
+   `plt.show()`; that cost one full papermill run.
    **The generator is NOT in the repo by design; the durable copy is the memory-dir path above.**
 2. **GitHub repo topics are still empty**, which is the largest remaining discoverability gap.
    Outward-facing, so it needs an explicit go-ahead:
@@ -411,12 +465,13 @@ Suggested target: top layer under 250 words to first meaningful figure, whole pa
    future session ever changes a default, it owes a DSR trial.
 5. Phase 10 is DONE. Its lesson generalizes: before believing any regime result, count episodes
    and drop the largest. That check retracted this project's own apparent discovery.
-6. Beyond that the evidence still points at a **directional state variable**: credit spreads
-   (FRED `BAA10Y`, now genuinely requested by both entry points, but FRED is blocked on this
-   network so it needs a different network or a vendor), market breadth, earnings revisions or
-   positioning. Realized vol and VIX are symmetric in sign and provably cannot supply direction.
-   NOTE the DSR budget is nearly spent: at 7 trials any new variant needs a materially larger raw
-   Sharpe just to hold its ground.
+6. Beyond that the evidence still points at a **directional state variable**, and as of 2026-07-26
+   the data for one is CACHED AND PLOTTED, just not fitted. `load_credit_proxies` gives a signed
+   credit spread that separates the COVID crash (+0.284) from the 2022 rates selloff (-0.025, the
+   other way) where realized volatility rises in both. Making it a feature is trial 8 and it would
+   move every published number, so it needs an explicit decision, not a drive-by. Market breadth,
+   earnings revisions and positioning are the other candidates. NOTE the DSR budget is nearly
+   spent: at 7 trials any new variant needs a materially larger raw Sharpe just to hold its ground.
 7. **CONSIDERED AND DECLINED on 2026-07-24. Not novel, do not propose as new.** Both were weighed
    against the DSR budget (7 trials spent) and the user chose rigor-only:
    - *Stance-map test*: if states predict variance and not direction, the correct use is SIZING,
@@ -436,7 +491,7 @@ Suggested target: top layer under 250 words to first meaningful figure, whole pa
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 46 tests
+uv run pytest -q              # 67 tests
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
 uv run python notebooks/real_run.py india          # PRIMARY: full run + 16 figures
@@ -488,7 +543,11 @@ uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 - `max_sharpe_weights` needs `psd_wrap(cov)` (LedoitWolf cov can carry tiny negative eigenvalues).
 - hmmlearn emits ~500 NumPy-2.5 DeprecationWarnings per run (internal `a_sum.shape = shape`);
   noise, not our code.
-- FRED (fred.stlouisfed.org) is blocked on this network; macro degrades gracefully with a warning.
+- FRED (fred.stlouisfed.org) is blocked from Python on this network: `requests` times out at 25s
+  while `curl` through a different path returns 200, so do not trust a curl probe as evidence that
+  `load_macro` will work. DBnomics does NOT carry the FRED provider (`Could not find storage
+  directory for provider 'FRED'`), so it is not a mirror. Both entry points fall back to
+  `load_credit_proxies` on Yahoo and print which leg answered.
 - yfinance 1.x returns MultiIndex columns (field, ticker); `data.py` handles single vs multi.
 - `git add -A` once swept in `.claude/` plugin sqlite files; `.claude/` is gitignored now. Watch
   for stray dirs before any commit.
