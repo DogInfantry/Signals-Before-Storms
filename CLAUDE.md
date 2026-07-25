@@ -319,85 +319,39 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**A four-phase visual-integrity pass. Phase 1 is DONE and committed; Phases 2-4 have NOT started.**
+**The four-phase visual-integrity pass is DONE. All four phases committed on the worktree branch
+`claude/sleepy-villani-42671c`, NOT pushed.** Tree clean, 65 tests green, ruff clean.
 
-Working in a git WORKTREE: `.claude/worktrees/sleepy-villani-42671c`, branch
-`claude/sleepy-villani-42671c`, **1 commit ahead of `main` and NOT pushed**. Tree clean.
-The approved plan is on disk at
-`C:\Users\Anklesh\.claude\plans\1-fix-2-recursive-gadget.md` and is the authority for Phases 2-4.
+- `b022350` Phase 1: corrected claims the repo's own tables contradict.
+- `3bdd4f8` recorded the pass state here.
+- `54e4daa` Phase 2: `tools/validate_palette.py` + `tests/test_style.py`. See the palette section
+  below, which is now the load-bearing part.
+- `7bbbdda` Phase 3: countable `episode_bars`, `DISPLAY_NAMES`, horizontal drawdown quadrant,
+  standalone `paired_forest`, SVG output for site figures.
+- `e892f81` Phase 4: page rebuilt, three sections cut, rescues reframed, SVG plates, mobile stack.
 
-**Phase 1 DONE (`b022350`)**: corrected claims the repo's own tables contradict. The US section
-said the strategy "loses outright on every metric" while its own table showed two HMM books with
-SHALLOWER drawdown than 60/40 (-27.4% and -27.3% against -27.6%). The TL;DR and headline said the
-strategy "does not beat 60/40 or equal weight on Sharpe" while India shows 0.824 against 0.815 and
-0.604. Both restated as NON-SEPARATION under the paired test, which is the defensible claim. Same
-overstatement fixed in the README FAQ, the README Disclaimer and `docs/index.html`'s disclaimer.
-Figure counts corrected everywhere. No number touched.
+**THE PALETTE IS NOW TESTED, AND THE TEST CORRECTED TWO CLAIMS THIS REPO WAS MAKING.**
+`tools/validate_palette.py` enforces three floors over `style.PALETTES`, which now carries an
+ENCODING CHANNEL per group (`hue` or `lightness`) because that decides which floor applies:
+contrast >= 3:1 vs SURFACE (every colour), CIE76 dE >= 8 after protan/deutan simulation (every
+pair), hue separation >= 90 degrees (pairs in a `hue` palette only).
+1. **The shipped Bull gold `#e8b84b` measured 1.80:1, WORSE than the 1.92:1 amber the docstring
+   condemned.** Ramp is now `#b8860b/#9e4310/#6b1210` at 3.17 / 6.27 / 11.90:1, worst pair dE 23.4.
+2. **The "~3 CVD units" claim in `style.py` AND `README.md` DOES NOT REPRODUCE. Do not restore it.**
+   The old green/amber/red triad measures worst pair **17.2 dE**, comfortably clear, because those
+   colours differ in LIGHTNESS. The real defect is invisible to dE: after simulation the triad
+   collapses to ONE HUE, pairs **0.6 / 1.1 / 1.4 degrees** apart. Hence the hue floor. Sign is now
+   blue vs orange (**166.6 deg**) instead of green vs red (**1.1 deg**).
+`GOOD`/`BAD` are DELETED, so there is no exemption list. `plots.py` has zero hardcoded colours.
 
-**Phases 2-4 NOT STARTED.** Trigger: the user viewed the Vercel landing page and rejected the data
-visualisation. Investigation found it is not only taste, it is a claim the artifacts disprove:
+**HARD CONSTRAINT HELD: no published number moved.** Verified by A/B, stashing the changes and
+re-running: identical output. NOTE this also revealed that CLAUDE.md's India table lists
+hmm_unconditional CI `( 0.011, 1.469)` / DSR 0.697 while the code produces `( 0.007, 1.469)` /
+DSR 0.698, **on the pre-change code too**. That is pre-existing doc staleness, not a regression.
 
-- **THE VISUAL CLAIM IS FALSE AS SHIPPED.** `style.py`'s own docstring says green/amber/red
-  "collapses under red-green colour blindness". Three figures then encode SIGN by exactly green vs
-  red: `plots.py:390` (`episode_bars`, `[BAD if v<0 else GOOD]`), `plots.py:348` (`sharpe_forest`,
-  `["#c62828" if x<=0 else "#2e7d32"]`), `plots.py:546` (`story_panel` drawdown panel). README and
-  the site both advertise "the palette was validated rather than chosen by eye". Fix by moving the
-  sign pair to `SERIES_A`/`SERIES_B`, already documented as protan-separation 19.9 against a floor
-  of 8. The zero baseline already carries sign, so hue is redundant reinforcement, not the sole
-  channel.
-- **"One module owns colour" is FALSE in the code.** `plots.py` imports `GOOD`/`BAD`/`NEUTRAL` then
-  hardcodes near-duplicates at ~13 sites (`#37474f` at 148,151,176,202,323,342,484; `#c62828` at
-  187,203,208,488; `#2e7d32` at 348). Note `#c62828` is NOT `BAD` (`#b3261e`): two reds circulate.
-- **The validator is claimed but ABSENT.** `style.py:5` says every palette "was run through a
-  contrast and colour-vision-deficiency validator". That script is not in the repo. Add
-  `tools/validate_palette.py` + `tests/test_style.py` so the boast becomes a tested fact, matching
-  how leak-proofing is already handled. **EXPECT `GOOD`/`BAD` to FAIL that test**, since that pair
-  is the thing being flagged; the user was asked whether to keep a green/red pair anywhere and the
-  session ended before an answer.
-- **`episode_bars` cannot be counted.** Its whole message is "14 episodes, not 261 days" and its
-  subtitle asserts 14, but `plots.py:400-406` blanks the tick label of any bar under 4% of total
-  width and width-proportional bars render short episodes as 1px slivers. A reader can distinguish
-  about 10. Enforce a minimum bar width, number the axis 1..n, move dates to the subtitle.
-- **Code identifiers leak into public figures**: `hmm_drawdown_feat`, `vol_rule_ablation`,
-  `hmm_vol_targeted`, `60_40`, `equal_weight`, `jump_regime`. The site tables already use proper
-  names. Add one `DISPLAY_NAMES` dict in `style.py`, reusing the exact strings from the
-  `docs/index.html` scorecard tables.
-- **`paired_forest` has no standalone save**, only as a `story_panel` sub-panel. Phase 4 needs it
-  standalone for the mobile path. Adding it makes 16 per universe, 32 in `results/`.
-- **Page: the user named three sections useless** and they are to be CUT: the numbered 01-08 index
-  nav, the "Run it yourself" block, and the four-column colophon band (compress to one line plus
-  the citation blockquote, which is a licence condition). Also drop the bare raw-PNG links, and use
-  `<picture>` so the 1963px composite swaps to stacked standalone plates on narrow viewports.
-- **The four failed rescues STAY.** The user chose "keep, reframe". Lead each with its
-  pre-registered criterion and replace the red `failed` stamp with a neutral `pre-registered`
-  marker carrying the outcome as text, so a skimmer sees discipline, not defeat. Entry 04's
-  retraction is untouched.
-
-**HARD CONSTRAINT on Phases 2-4: no published number may change.** Every edit is cosmetic or
-colour-routing. After regenerating, diff the printed scorecards against the README tables; if a
-number moves, something was changed that should not have been.
-
-Eight commits landed 2026-07-25:
-- `ffd1de5` spec-adherence: `cash_ret` feature fix, real India 60/40 (cash leg), gross+net
-  scorecards, India-primary notebook, 7 new figures.
-- `f4938ac` Phase 10 effective sample size: `label_episodes`, `episode_profile`, `episode_bars`,
-  dual CIs, plus the retraction of the jump directional-state claim.
-- `321bb0a` Phase 11: `paired_bootstrap` (corrected an invalid overlapping-marginal-CI inference),
-  `subperiod_summary`, `sensitivity_sweep`, 3 figures.
-- `875975e` README rewritten for discoverability; 6 figures committed under `docs/img/`.
-- `5bfb6b6` figure design pass: new `style.py` with a validated palette, redesigned
-  `label_profile_bars` (draws the expected slope beside the measured one), new `story_panel` and
-  `paired_forest`, README leads with the composite.
-- `1b24a43` driver notebook re-rendered against the designed figures: generator gained the
-  `story_panel` import, `paired_vs` collection and a section-7 composite cell; 58 cells, 0 errors,
-  15 embedded figures. No result changed, only images.
-- `e47fb0e` retire the notebook-is-stale note.
-- `60e5edf` the Vercel landing page: `docs/index.html` + `docs/style.css` + `docs/favicon.svg` +
-  `vercel.json`. Preset `Other`, Root Directory `docs`, no build step, no JS libraries, inline SVG
-  for the pipeline diagram. `PRODUCT.md` at the repo root is its brief and is worth reading before
-  touching the page: it names the audience (a recruiter with under a minute, often on a phone),
-  fixes the constraints, and lists absences that must never be filled in by invention.
-- `b022350` **UNPUSHED, this branch only.** Phase 1 above.
+**STILL OUTSTANDING (the notebook):** `notebooks/driver.ipynb` embeds the OLD figures. Phases 2-4
+changed every one of them. Re-render before considering this finished:
+`uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3` (~5 min).
 
 ## Next steps
 0. **THE ACTIVE WORK: Phases 2-4 of the visual-integrity pass.** Read
