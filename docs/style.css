@@ -12,17 +12,26 @@
   --ink-faint: #8a8a8a;
   --rule: #e4e4e1;
   --series-a: #1a6ca8;
-  --good: #2e7d32;
-  --bad: #b3261e;
-  --regime-0: #e8b84b;
-  --regime-1: #d2691e;
-  --regime-2: #8f1d14;
+  --series-b: #c8501e;
+  --neutral: #37474f;
+  /* The lightness-ordered risk ramp, as validated. The values that used to sit here (#e8b84b,
+     #d2691e, #8f1d14) are the palette the validator failed: the light end measured 1.80:1
+     against the surface, under the 3:1 floor. Regimes are ordinal, so order is lightness. */
+  --regime-0: #b8860b;
+  --regime-1: #9e4310;
+  --regime-2: #6b1210;
 
   /* derived */
   --ground: var(--surface);
   --plate: var(--surface);
   --plate-edge: var(--rule);
   --link: var(--series-a);
+
+  /* Sign, encoded as the validated pair rather than green against red. Simulate a dichromat and
+     #2e7d32 and #c62828 land 1.1 degrees apart in hue: one colour at two lightnesses. These two
+     land 166.6 apart. The names are kept because story.html marks up sign in several places. */
+  --good: var(--series-a);
+  --bad: var(--series-b);
 
   --measure: 68ch;
   --margin-col: 5.5rem;
@@ -42,8 +51,12 @@
     --ink-faint: #85847f;
     --rule: #2e3036;
     --link: #7ab8e5;
-    --good: #6fbf73;
-    --bad: #ef8a80;
+    /* The line colours are chart ink drawn straight onto the dark page, not onto a plate, so
+       they get lighter variants of the same two hues. Hue is what carries the encoding and hue
+       is preserved; only lightness moves, which is what the dark ground requires. */
+    --series-a: #6aa9d8;
+    --series-b: #e8845a;
+    --neutral: #9aa7ae;
     /* figures keep their own light surface, so they get a plate rather than the page ground */
     --plate: #fcfcfb;
     --plate-edge: #2e3036;
@@ -517,4 +530,267 @@ pre {
   border-left: 1px solid var(--rule);
   color: var(--ink-soft);
   font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   INSTRUMENT PANEL (index.html)
+
+   The log styles above dress story.html, which is prose. This layer dresses the
+   landing page, which is a control surface: a verdict, four numbers, and charts
+   the reader drives. Charts are inline SVG drawn by site.js, so they inherit
+   every custom property declared at the top of this file and theme themselves.
+   ========================================================================== */
+
+.panel {
+  --panel-max: 74rem;
+  padding: 0;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  max-width: var(--panel-max);
+  margin: 0 auto;
+  padding: 1.1rem clamp(1rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar__id { font-weight: 650; letter-spacing: -0.01em; }
+.topbar__nav { display: flex; gap: 1.25rem; font-size: 0.9rem; }
+
+.panel main {
+  max-width: var(--panel-max);
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2.5rem) 3rem;
+}
+
+.panel section { padding-block: clamp(1.75rem, 4vw, 2.75rem); }
+.panel section + section { border-top: 1px solid var(--rule); }
+
+/* ---- verdict -------------------------------------------------------------- */
+
+.verdict h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.85rem, 1.2rem + 3vw, 3.1rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.lede {
+  max-width: 62ch;
+  margin: 0 0 1.75rem;
+  font-size: clamp(1rem, 0.97rem + 0.25vw, 1.15rem);
+  color: var(--ink-soft);
+}
+.micro { font-size: 0.83rem; color: var(--ink-faint); margin: 1rem 0 0; }
+
+.stats {
+  display: grid;
+  /* 9.5rem lets two tiles pair up inside a 375px viewport, which keeps the first chart within
+     reach of the fold on a phone. Wider viewports fill out to four across. */
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem;
+  background: var(--ground);
+}
+.stat__k {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+}
+.stat__v {
+  font-family: var(--mono);
+  font-size: clamp(1.4rem, 1.1rem + 1.1vw, 1.9rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat__sub { font-size: 0.78rem; color: var(--ink-soft); }
+
+/* ---- controls ------------------------------------------------------------- */
+
+.controls { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+
+.switch { display: inline-flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.switch--inline { margin-left: 0.5rem; vertical-align: middle; }
+.switch button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+.switch button + button { border-left: 1px solid var(--rule); }
+.switch button[aria-pressed="true"] { background: var(--series-a); color: #fff; }
+.switch button:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.chip.on { color: var(--ink); border-color: var(--ink-faint); }
+.chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+.chip:focus-within { outline: 2px solid var(--link); outline-offset: 1px; }
+.chip i,
+.legend i,
+.readout i {
+  width: 0.85rem;
+  height: 0.2rem;
+  border-radius: 1px;
+  flex: none;
+  opacity: 0.35;
+}
+.chip.on i { opacity: 1; }
+
+/* ---- plots ---------------------------------------------------------------- */
+
+.plot { margin: 0 0 1.75rem; }
+.plot figcaption {
+  max-width: 60ch;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.plot figcaption b { color: var(--ink); font-weight: 620; }
+
+.plot svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.plot .grid { stroke: var(--rule); stroke-width: 1; }
+.plot .zero { stroke: var(--ink-faint); stroke-width: 1; }
+.plot .ci { stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; }
+.plot .crosshair { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 2 3; }
+.plot .tick {
+  fill: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.plot .barlab {
+  fill: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.plot .regime-name { text-anchor: middle; font-weight: 600; }
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  min-height: 1.4rem;
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.readout span,
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.readout b { color: var(--ink); }
+
+.legend {
+  display: flex;
+  gap: 1rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.pair { display: grid; gap: 1.5rem; }
+@media (min-width: 56rem) {
+  .pair { grid-template-columns: 1fr 1fr; gap: 2rem; }
+}
+
+/* ---- scorecard ------------------------------------------------------------ */
+
+.scorecard { overflow-x: auto; }
+.scorecard table { border-collapse: collapse; width: 100%; font-size: 0.83rem; }
+.scorecard caption {
+  text-align: left;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  padding-bottom: 0.6rem;
+}
+.scorecard th,
+.scorecard td {
+  padding: 0.4rem 0.7rem 0.4rem 0;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule);
+}
+.scorecard thead th {
+  color: var(--ink-faint);
+  font-weight: 500;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.scorecard tbody th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-soft);
+  padding-right: 1.25rem;
+}
+.scorecard td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.scorecard .ci-cell { color: var(--ink-faint); }
+.scorecard tr.on th,
+.scorecard tr.on td { color: var(--ink); }
+
+/* ---- prose blocks on the panel -------------------------------------------- */
+
+.panel h2 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.15rem, 1rem + 0.7vw, 1.45rem);
+  letter-spacing: -0.015em;
+}
+.facts { max-width: 68ch; margin: 0 0 1.25rem; padding-left: 1.1rem; }
+.facts li { margin-bottom: 0.7rem; color: var(--ink-soft); }
+.facts b { color: var(--ink); font-weight: 620; }
+.why p { max-width: 68ch; color: var(--ink-soft); }
+
+.specs { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 0; }
+.specs > div { display: grid; gap: 0.15rem; padding: 0.7rem 1rem; background: var(--ground); }
+@media (min-width: 44rem) {
+  .specs > div { grid-template-columns: 12rem 1fr; gap: 1rem; align-items: baseline; }
+}
+.specs dt { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+.specs dd { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+
+.note {
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--series-b);
+  color: var(--ink-soft);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  justify-content: space-between;
+  max-width: var(--panel-max);
+  margin: 0 auto;
+  padding: 1.25rem clamp(1rem, 4vw, 2.5rem) 2.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.82rem;
+  color: var(--ink-faint);
 }

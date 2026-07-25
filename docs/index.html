@@ -2,535 +2,177 @@
 <!--
 DIRECTION CONTRACT
 
-THESIS: A failed strategy told in the order it failed. Refuses the results-hero landing that
-reports a Sharpe and stops.
+THESIS: An instrument panel, not an essay. The previous page ran 2,826 words against its own
+"under a minute" brief, which is the same defect class this project spends its length fixing:
+a claim the artifact disproves. The prose is not deleted, it moves to story.html, and the
+landing page becomes the thing a reader can operate.
 
-OWN-WORLD: Inherited from src/regime_shift/style.py, the module that draws every figure here:
-surface #fcfcfb, ink #1c1c1c / #5c5c5c / #8a8a8a, hairline rules #e4e4e1, #1a6ca8 for action,
-and the ordinal regime ramp #e8b84b / #d2691e / #8f1d14 used only where regimes are named. The
-component language is a ruled research log: margin rule, numbered entries, an index of entries,
-marginal notes, tabular figures. No card grid, no downloaded typeface.
+OWN-WORLD: Inherited from src/regime_shift/style.py, the module that draws every figure in the
+repository: surface #fcfcfb, ink #1c1c1c / #5c5c5c / #8a8a8a, hairline rules, #1a6ca8 against
+#c8501e for the two-series encoding, and the ordinal regime ramp #b8860b / #9e4310 / #6b1210,
+all validated by tools/validate_palette.py rather than chosen by eye.
 
-STORY: The reader learns the overlay fails, learns why (volatility states carry no direction),
-sees four rescues fail on pre-registered terms, and watches the author retract his own apparent
-discovery. They conclude the failure was measured rather than assumed, and open the repository.
+STORY: Verdict in one line, four numbers, then a chart the reader drives. The comparison is
+theirs to make: toggle books, switch gross to net, switch India to US, watch the ordering
+change. Only then a link to the full log, for the reader who wants the argument.
 
-FIRST VIEWPORT: Left column, title, the one-sentence verdict against a red rule, and the primary
-action to GitHub. Right column, the four-panel composite at full width. The index of entries is
-already breaking the fold line below both columns.
+FIRST VIEWPORT: Verdict, four stat tiles, and the top of the live equity chart with the regime
+path shaded behind it.
 
-FORM: Lab notebook chronology, candidate 3 of my 7 grounded structures, no staging challenger
-adopted, seed key 855a3e8b.
+FORM: Instrument panel over a research log. No downloaded typeface, no framework, no build step.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Signals-Before-Storms: an HMM regime overlay that did not work, and why</title>
-<meta name="description" content="A Hidden Markov Model regime overlay for tactical asset allocation, validated with a leak-proof walk-forward. No book separates from a 60/40 or equal-weight benchmark under a paired difference test. Published as a rigorous negative result with a diagnosis, and with its own retraction.">
+<title>Signals-Before-Storms: an HMM regime overlay, measured rather than believed</title>
+<meta name="description" content="A Hidden Markov Model regime overlay for tactical asset allocation, validated leak-proof over eight years of Indian and US markets. Drive the backtest yourself: toggle books, switch gross and net of costs, compare India against the US.">
 <meta name="author" content="Anklesh Rawat">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Signals-Before-Storms: an HMM regime overlay that did not work, and why">
+<meta property="og:title" content="Signals-Before-Storms: an HMM regime overlay, measured rather than believed">
 <meta property="og:description" content="Volatility states carry no directional information. Four rescues failed on pre-registered terms. One apparent discovery was retracted by an episode count.">
-<!-- Absolute so link unfurlers resolve it. Points at the repository copy, which is stable and
-     does not depend on the deployment domain. Add og:url once the production domain is known. -->
 <meta property="og:image" content="https://raw.githubusercontent.com/DogInfantry/Signals-Before-Storms/main/docs/img/india_story.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<script defer src="site.js"></script>
 </head>
-<body>
+<body class="panel">
 
-<div class="log">
+<header class="topbar">
+  <span class="topbar__id">Signals-Before-Storms</span>
+  <nav class="topbar__nav">
+    <a href="story.html">The full log</a>
+    <a href="https://github.com/DogInfantry/Signals-Before-Storms">Repository</a>
+  </nav>
+</header>
 
-  <header class="masthead">
-    <span class="masthead__id">Signals-Before-Storms</span>
-    <span class="masthead__meta">research log</span>
-    <span class="masthead__meta">India 2016-07-22 to 2023-12-29, n = 1,814</span>
-  </header>
+<main>
 
-  <!-- ================= COVER ================= -->
-  <section class="cover">
-    <div>
-      <h1>
-        The model worked.<br>The strategy did not.
-        <span class="quiet">A Hidden Markov Model regime overlay for tactical asset allocation,
-        run leak-proof over eight years of Indian and US markets.</span>
-      </h1>
+  <!-- ============================ VERDICT ============================ -->
+  <section class="verdict">
+    <h1>The model worked. The strategy did not.</h1>
+    <p class="lede">
+      A Hidden Markov Model splits eight years of Indian and US markets into calm, stressed and
+      crisis states, and a convex optimizer sets portfolio weights per state. The states are real,
+      and they are volatility states. Volatility carries no direction, so de-risking on the crisis
+      label sells the rebound as reliably as it dodges the crash.
+    </p>
+    <div id="stats" class="stats"></div>
+    <p class="micro">
+      <span data-market-name>India</span>, walk-forward out of sample, <span data-oos>loading</span>.
+      Every number on this page is computed by the same code that prints the scorecard, exported
+      straight from the run.
+    </p>
+  </section>
 
-      <p class="verdict">No book here separates from a static 60/40 or equal weight once the
-      comparison uses a paired difference test. What the overlay does buy is drawdown, cutting the
-      worst loss by roughly two thirds on Indian data. Published as a negative result with a
-      diagnosis, and it retracts one of its own findings.</p>
+  <!-- ============================ CHARTS ============================ -->
+  <section id="charts" class="charts">
 
-      <div class="actions">
-        <a class="action action--primary" href="https://github.com/DogInfantry/Signals-Before-Storms">Read the code on GitHub</a>
-        <a class="action" href="#e8">Skip to the verdict</a>
+    <div class="controls" role="group" aria-label="Chart controls">
+      <div class="switch" role="group" aria-label="Market">
+        <button type="button" data-market="india" aria-pressed="true">India</button>
+        <button type="button" data-market="us" aria-pressed="false">US</button>
+      </div>
+      <div class="switch" role="group" aria-label="Transaction costs">
+        <button type="button" data-cost="net" aria-pressed="true">Net of costs</button>
+        <button type="button" data-cost="gross" aria-pressed="false">Gross</button>
       </div>
     </div>
 
-    <figure class="cover__figure plate">
-      <!-- One composite on a wide screen, its panels stacked on a narrow one. A 1963px four-panel
-           image on a phone is four unreadable thumbnails, and the panels already exist as separate
-           plates. CSS toggle rather than <picture>, because this swaps one image for three. -->
-      <div class="plate__wide">
-        <img src="img/india_story.svg" alt="Four panels. Top left, next-day annualised return rises with the volatility label while volatility also rises, so the return ordering runs the wrong way. Top right, crisis episodes as individual bars showing only fourteen episodes behind two hundred and sixty-one days. Bottom left, paired Sharpe differences against each benchmark, every interval crossing zero. Bottom right, equity curves and drawdowns, where the overlay's worst loss is a fraction of the benchmark's.">
-      </div>
-      <div class="plate__stack">
-        <img src="img/india_label_profile.svg" loading="lazy"
-             alt="Next-day annualised return rises with the volatility label while volatility also rises, so the return ordering runs the wrong way.">
-        <img src="img/india_episode_bars.svg" loading="lazy"
-             alt="Crisis episodes as individual bars, showing only fourteen episodes behind two hundred and sixty-one days, one of which dominates.">
-        <img src="img/india_paired_forest.svg" loading="lazy"
-             alt="Paired Sharpe differences against the 60/40 benchmark, every interval crossing zero.">
-      </div>
-      <figcaption><b>The whole argument in four panels.</b> The states are real and persistent, but
-      they predict variance rather than direction (top left). The evidence behind any regime claim
-      is far thinner than the day count suggests (top right). No book separates from its benchmark
-      under a paired test (bottom left). What the overlay does buy is drawdown (bottom right).</figcaption>
-    </figure>
-  </section>
+    <div id="books" class="chips" role="group" aria-label="Books to plot"></div>
 
-
-  <!-- ================= 01 ================= -->
-  <section class="entry" aria-labelledby="e1">
-    <span class="entry__no" aria-hidden="true">01</span>
-    <h2 id="e1">What was built</h2>
-    <p class="entry__lede">Three hidden states inferred from causal features, each state routed to
-    its own convex program. The interesting engineering is not the model, it is the two places the
-    pipeline refuses to look at the future.</p>
-
-    <div class="diagram">
-      <svg viewBox="0 0 420 706" role="img" aria-labelledby="pipe-t pipe-d">
-        <title id="pipe-t">The pipeline, from prices to deflated statistics</title>
-        <desc id="pipe-d">Nine stages run top to bottom. Prices from Yahoo Finance feed build_master,
-        which takes log returns and applies a vendor-error guard. build_features derives momentum,
-        realised volatility and VIX features, all causal. An expanding walk-forward fits the scaler
-        on training rows only and refits the HMM every fold. Test labels come from a causal forward
-        filter, never whole-sequence Viterbi. Labels drive a per-regime convex program, and run_book
-        applies a one-day execution lag and 7.5 basis points of cost to every book alike. The final
-        stage computes deflated Sharpe, paired bootstrap intervals and episode counts. Two stages
-        are marked as the leak-proofing guards: the causal forward filter and the execution lag.</desc>
-
-        <g class="d-line">
-          <path d="M210 62 V 84 M210 140 V 162 M210 218 V 240 M210 296 V 318 M210 374 V 396 M210 452 V 474 M210 530 V 552 M210 608 V 630"/>
-        </g>
-
-        <rect class="d-box" x="20" y="6" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="30">Yahoo Finance</text>
-        <text class="d-sub" x="38" y="48">NIFTY 50 / gold / cash / India VIX</text>
-
-        <rect class="d-box" x="20" y="84" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="108">build_master</text>
-        <text class="d-sub" x="38" y="126">log returns, vendor-error guard</text>
-
-        <rect class="d-box" x="20" y="162" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="186">build_features</text>
-        <text class="d-sub" x="38" y="204">momentum, realised vol, VIX. all right-aligned</text>
-
-        <rect class="d-box" x="20" y="240" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="264">Expanding walk-forward</text>
-        <text class="d-sub" x="38" y="282">scaler fit on train rows only, HMM refit per fold</text>
-
-        <rect class="d-box d-guard" x="20" y="318" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="342">Causal forward filter</text>
-        <text class="d-sub d-guard-label" x="38" y="360">guard: never whole-sequence Viterbi</text>
-
-        <rect class="d-box" x="20" y="396" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="420">Regime label</text>
-        <text class="d-sub" x="38" y="438">0 Bull / 1 Bear / 2 Crisis, ascending risk</text>
-
-        <rect class="d-box" x="20" y="474" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="498">Per-regime convex program</text>
-        <text class="d-sub" x="38" y="516">cvxpy, long-only, weight-capped</text>
-
-        <rect class="d-box d-guard" x="20" y="552" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="576">run_book</text>
-        <text class="d-sub d-guard-label" x="38" y="594">guard: 1-day execution lag, 7.5 bps, every book</text>
-
-        <rect class="d-box" x="20" y="630" width="380" height="56" rx="2"/>
-        <text class="d-label" x="38" y="654">Deflated Sharpe</text>
-        <text class="d-sub" x="38" y="672">paired bootstrap CI, episode counts</text>
-      </svg>
-    </div>
-
-    <h3>The stance map</h3>
-    <p class="table-caption" id="cap-stance">Each regime gets a distinct convex program. Long-only,
-    fully invested, weight-capped.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="Per-regime objectives, scrollable table" aria-describedby="cap-stance">
-      <table>
-        <thead>
-          <tr><th scope="col">Regime</th><th scope="col">Objective</th><th scope="col">Reasoning</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><span class="key key--0">0 Bull</span></td><td>Maximise Sharpe</td><td>Calm market, take risk</td></tr>
-          <tr><td><span class="key key--1">1 Bear</span></td><td>Minimise variance</td><td>Stressed, preserve capital</td></tr>
-          <tr><td><span class="key key--2">2 Crisis</span></td><td>Minimise variance, hard equity cap</td><td>Violent, de-risk hard</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p class="note"><b>The states are not noise.</b> The transition matrix diagonal runs 0.97 to
-    0.98, so the regimes persist rather than flickering. The corner entries are zero: Bull never
-    jumps straight to Crisis and Crisis never jumps straight to Bull, so the market always passes
-    through the middle state. Nothing in the fit asked for that.</p>
-  </section>
-
-  <!-- ================= 02 ================= -->
-  <section class="entry" aria-labelledby="e2">
-    <span class="entry__no" aria-hidden="true">02</span>
-    <h2 id="e2">The first result, and the whole problem</h2>
-    <p class="entry__lede">Measured at the lag the strategy actually trades: the label is known at
-    the close of day t, the return is earned on day t plus one.</p>
-
-    <p class="table-caption" id="cap-label">Next-day annualised return and volatility by regime
-    label, both universes.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="Return and volatility by regime label, scrollable table" aria-describedby="cap-label">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Regime label</th>
-            <th scope="col">India days</th><th scope="col">India return</th><th scope="col">India vol</th>
-            <th scope="col">US days</th><th scope="col">US return</th><th scope="col">US vol</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><span class="key key--0">0 Bull</span></td><td>821</td><td>+10.2%</td><td>11.2%</td><td>665</td><td>+10.9%</td><td>8.7%</td></tr>
-          <tr><td><span class="key key--1">1 Bear</span></td><td>731</td><td>+15.0%</td><td>14.9%</td><td>841</td><td>+14.7%</td><td>15.6%</td></tr>
-          <tr><td><span class="key key--2">2 Crisis</span></td><td>261</td><td>+18.4%</td><td>31.7%</td><td>379</td><td>+16.1%</td><td>32.2%</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p><strong>Volatility orders perfectly with the label. Return orders backwards, on both
-    universes.</strong> That single table explains the entire result. De-risking on the Crisis
-    label means selling the highest-returning days, because the rebounds of April 2020 and late
-    2022 are as violent as the crashes that preceded them.</p>
-
-    <p>A state variable has to predict <em>direction</em> before a directional bet on it can pay.
-    Realised volatility is symmetric in sign by construction, so it cannot tell a crash from a
-    rebound. The model was asked for regimes and it delivered regimes. They are the wrong kind.</p>
-
-    <figure class="plate">
-      <img src="img/india_label_profile.svg" loading="lazy"
-             alt="Bars of next-day annualised return and annualised volatility for each regime label on India. Volatility climbs steeply from 11.2 percent at label 0 to 31.7 percent at label 2. Return also climbs, from 10.2 percent to 18.4 percent, against the expected slope drawn beside it.">
-      <figcaption><b>The measured slope beside the expected one.</b> The volatility bars climb the
-      way a risk-ordered label should. The return bars climb too, which is exactly backwards from
-      what the stance map is betting on.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ================= 03 ================= -->
-  <section class="entry" aria-labelledby="e3">
-    <span class="entry__no" aria-hidden="true">03</span>
-    <h2 id="e3">Four rescues, each judged against a criterion written down first</h2>
-    <p class="entry__lede">The obvious response to a broken result is to fix it. Every attempt was
-    given a success criterion before it was run, so that the outcome could not be reinterpreted
-    afterwards.</p>
-
-    <div class="ledger">
-      <dl>
-        <dt>Re-rank the states by return</dt>
-        <dd class="criterion"><b>Criterion:</b> a return-ranked ordering should separate direction where a volatility-ranked one does not.</dd>
-        <dd><span class="stamp stamp--pre">criterion not met</span>US Sharpe moved 0.542 to 0.620, still under 60/40, and the crisis label came out
-        <em>identical</em>: the same 379 days at the same +16.1%. Reordering cannot add information the state space does not contain.</dd>
-      </dl>
-      <dl>
-        <dt>A structurally different estimator</dt>
-        <dd class="criterion"><b>Criterion:</b> a Statistical Jump Model should find a different partition, and a directional one.</dd>
-        <dd><span class="stamp stamp--pre">criterion not met</span>It does find a different partition, agreeing with the HMM only 57.5% of the time on India,
-        and it does what it advertises: US dwell time 27 days to 194, turnover 4.19x to 1.46x. Its US crisis label still carries the
-        <em>highest</em> forward return, +20.0%. Two estimators, same broken ordering.</dd>
-      </dl>
-      <dl>
-        <dt>Volatility targeting at 10%</dt>
-        <dd class="criterion"><b>Criterion:</b> if the book is taking too much risk in the wrong states, a constant risk budget should help.</dd>
-        <dd><span class="stamp stamp--pre">criterion not met</span>US 0.542 to 0.562, and bit-identical on India at 0.824. It barely binds, because minimum
-        variance already pins the book at 9.6% volatility on the US and 3.9% on India. The strategy is not taking too much risk. It is taking far too little.</dd>
-      </dl>
-      <dl>
-        <dt>Add a drawdown feature</dt>
-        <dd class="criterion"><b>Criterion, written down first:</b> the crisis label's forward return must turn negative.</dd>
-        <dd><span class="stamp stamp--pre">criterion not met</span>It went the other way on both universes: US +16.1% to +17.6%, India +18.4% to
-        <em>+29.7%</em>. It also happens to top the India Sharpe table at 0.877, and it is <strong>still not counted as a win and not
-        adopted as the default</strong>. Promoting it on a metric other than its stated one is precisely the selection bias the pre-registration exists to prevent.</dd>
-      </dl>
-    </div>
-
-    <figure class="plate">
-      <img src="img/india_regime_weights.svg" loading="lazy"
-             alt="Mean portfolio weight per asset in each regime. Equity never exceeds roughly a quarter of the book in any regime, with the remainder in cash and gold, and the crisis regime holds the least equity of all.">
-      <figcaption><b>Why volatility targeting had nothing to bind on.</b> The stance map does exactly
-      what it was told, and this is the cost: equity never exceeds a quarter of the book in any
-      regime. The overlay is not too aggressive, it is permanently defensive.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ================= 04 ================= -->
-  <section class="entry entry--retraction" aria-labelledby="e4">
-    <span class="entry__no" aria-hidden="true">04</span>
-    <h2 id="e4">The retraction</h2>
-    <p class="entry__lede">One result did look like a genuine directional state. It was written up.
-    Then it was counted properly, and withdrawn the same day.</p>
-
-    <p>The Jump Model's India crisis label reads <span class="struck">-17.1% annualised over 94
-    days</span>, which would have made it the only negative-return state anywhere in this project.
-    It is <strong>two episodes</strong>: 64 days across COVID at -10.70%, and 30 days in late 2018
-    at <strong>+4.41%</strong>. Excluding COVID the label runs <strong>+30.17%</strong> annualised,
-    the same backwards ordering as everything else.</p>
-
-    <p>Worse, a cross-tabulation put all 94 of those days <em>inside</em> the HMM's own crisis
-    label, so it was never a different state space to begin with. The effective sample was one
-    event. The finding is retracted here rather than quietly dropped.</p>
-
-    <h3>Days are not a sample size</h3>
-    <p>That retraction came out of a general check: a claim about a regime is supported by how many
-    times the regime <em>occurred</em>, not how many rows it spanned. Drop each label's single
-    longest episode and see what survives.</p>
-
-    <p class="table-caption" id="cap-episodes">India, out-of-sample. Effective sample size and what
-    remains without the largest episode.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="Episode counts by regime label, scrollable table" aria-describedby="cap-episodes">
-      <table>
-        <thead>
-          <tr><th scope="col">Regime label</th><th scope="col">Episodes</th><th scope="col">Annualised return</th><th scope="col">Excluding largest episode</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><span class="key key--0">0 Bull</span></td><td>27</td><td>+10.2%</td><td>+2.7%</td></tr>
-          <tr><td><span class="key key--1">1 Bear</span></td><td>30</td><td>+15.0%</td><td>+13.1%</td></tr>
-          <tr><td><span class="key key--2">2 Crisis</span></td><td>14</td><td>+18.4%</td><td>+53.6%</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p>The crisis label spans 261 days, which sounds like evidence, across just <strong>14
-    episodes</strong>, only 3 of which lost money. Drop the longest one and the label runs +53.6%
-    annualised. The backwards return ordering is not an artifact of one event: it survives episode
-    counting on both universes.</p>
-
-    <figure class="plate">
-      <img src="img/india_episode_bars.svg" loading="lazy"
-             alt="Each crisis episode drawn as its own bar, ordered by length. One long COVID episode dominates the chart and the remaining thirteen episodes are much shorter, several of them positive.">
-      <figcaption><b>Fourteen bars, not 261 days.</b> One episode dominates the record. Any claim
-      resting on this label rests on a sample of fourteen, and mostly on one of them.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ================= 05 ================= -->
-  <section class="entry" aria-labelledby="e5">
-    <span class="entry__no" aria-hidden="true">05</span>
-    <h2 id="e5">The comparison was wrong too</h2>
-    <p class="entry__lede">An earlier draft compared strategies by checking whether their separate
-    confidence intervals overlapped. That is not a comparison, and correcting it changed what could
-    honestly be claimed.</p>
-
-    <p>Each marginal interval asks whether one book's Sharpe differs from zero. The question that
-    matters is whether the <em>gap</em> between two books differs from zero, which needs the
-    interval of the difference, resampled on the same dates for both books. Since every book holds
-    the same assets on the same days, differencing cancels the shared market move and the paired
-    interval comes out roughly <strong>three times tighter</strong>.</p>
-
-    <p class="table-caption" id="cap-paired">India. Sharpe difference against each benchmark, with
-    its paired bootstrap interval.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="Paired Sharpe differences against each benchmark, scrollable table" aria-describedby="cap-paired">
-      <table>
-        <thead>
-          <tr><th scope="col">Book</th><th scope="col">vs 60/40</th><th scope="col">vs equal weight</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>HMM plus drawdown feature</td><td>+0.273 (-0.36, +0.86)</td><td>+0.063 (-0.19, +0.28)</td></tr>
-          <tr><td>Volatility-threshold rule</td><td>+0.244 (-0.39, +0.79)</td><td>+0.033 (-0.23, +0.28)</td></tr>
-          <tr><td>HMM, regime-conditional</td><td>+0.220 (-0.47, +0.83)</td><td>+0.009 (-0.28, +0.26)</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p><strong>Every interval spans zero, on both universes.</strong> The "it is all noise" reading
-    survives, and it is now earned rather than assumed. It also sharpens one claim that used to be
-    overstated: on the US the volatility rule's <em>marginal</em> interval excludes zero, which says
-    only that its Sharpe beats zero. Paired against 60/40 it is +0.268 (-0.029, +0.559), so even the
-    ablation that wins the US table cannot be said to beat the benchmarks.</p>
-  </section>
-
-  <!-- ================= 06 ================= -->
-  <section class="entry" aria-labelledby="e6">
-    <span class="entry__no" aria-hidden="true">06</span>
-    <h2 id="e6">What held up</h2>
-    <p class="entry__lede">A negative result is only worth reading if the machinery that produced
-    it is trustworthy. These are the checks that survived their own scrutiny.</p>
-
-    <h3><span class="stamp stamp--held">held</span>Leak-proofing, asserted by tests</h3>
-    <p>Lookahead bias is the easiest way to produce a beautiful, worthless backtest. Five defences,
-    each pinned by a unit test that fails if the defence is removed: causal right-aligned features,
-    standardisation fit on training rows alone, a per-fold model refit, causal forward-filter
-    decoding instead of whole-sequence Viterbi, and a one-day execution lag enforced in a single
-    shared code path so every strategy and benchmark inherits it.</p>
-
-    <h3><span class="stamp stamp--held">held</span>Deflation at an honest trial count</h3>
-    <p>A Sharpe reported once, from one strategy out of several tried, is a biased number. The
-    deflated Sharpe here charges for <strong>7 trials</strong>, stated openly. The volatility rule
-    read 0.928 at 4 trials, and searching three more ideas lowered every number in that column.
-    That is what deflation is for. Intervals use a Politis-Romano stationary bootstrap with the
-    block length read off the data rather than guessed.</p>
-
-    <h3><span class="stamp stamp--held">held</span>Sensitivity reported as a surface, adopting nothing</h3>
-    <figure class="plate">
-      <img src="img/india_sensitivity.svg" loading="lazy"
-             alt="Sharpe ratio plotted against each swept parameter in turn, with the shipped default marked on every panel. The cost panel is nearly flat across the whole range.">
-      <figcaption><b>Costs are not the story.</b> Sharpe moves only 0.841 to 0.785 across free
-      trading to 25 basis points. At zero cost the strategy still does not beat its benchmarks,
-      which is a cleaner statement of the result than any net number.</figcaption>
-    </figure>
-    <p>The sweep reports the whole surface and <strong>adopts nothing</strong>, because picking the
-    best cell would be a search and would owe the deflated Sharpe another trial. Two knobs,
-    <code>weight_cap</code> and <code>rebalance_confirm_days</code>, are not flat, and the shipped
-    defaults sit at local Sharpe optima. Both were fixed before any result was computed and neither
-    is re-chosen, but a reader is entitled to be told.</p>
-
-    <h3><span class="stamp stamp--held">held</span>Vendor data guarded, not trusted</h3>
-    <p>GOLDBEES.NS on Yahoo prints a 100x round trip over 2019-12-19 to 2019-12-23: log returns of
-    -4.61 then +4.61. Two bad prints in 2,193 rows. Left alone they inflate gold's return standard
-    deviation from 0.011 to 0.139 and poison every Indian covariance, regime fit and Sharpe. The
-    guard rejects any daily absolute log return above 0.5 with a loud warning, and a test pins that
-    a genuine -13% crash day still survives it.</p>
-
-    <h3><span class="stamp stamp--held">held</span>A no-model ablation that can beat the model</h3>
-    <p>The strongest control here is a two-line volatility-threshold rule: same optimiser, same
-    costs, same walk-forward, but the regimes come from a trailing-volatility quantile instead of
-    the HMM. If the HMM cannot beat that, the HMM is decoration. On the US the rule wins outright,
-    0.958 against 0.542.</p>
-
-    <figure class="plate">
-      <img src="img/india_regime_overlay.png" width="1434" height="636" loading="lazy"
-             alt="The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. Darker crisis shading lines up with February 2018, the fourth quarter of 2018, the COVID crash and 2022.">
-      <figcaption><b>Out-of-sample labels, no future information.</b> The causal filter independently
-      flags February 2018, Q4 2018, COVID and 2022. The states are real. That was never the part
-      that failed.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ================= 07 ================= -->
-  <section class="entry" aria-labelledby="e7">
-    <span class="entry__no" aria-hidden="true">07</span>
-    <h2 id="e7">The scorecards</h2>
-    <p class="entry__lede">Every book, strategy and benchmark alike, runs through the same cost
-    engine at 7.5 basis points per unit of turnover with a one-day execution lag. A benchmark costed
-    on different terms is not a benchmark.</p>
-
-    <p class="table-caption" id="cap-india">India, the primary universe. Out-of-sample 2016-07-22 to
-    2023-12-29, n = 1,814. Sharpe is measured against the 3.79% risk-free rate the cash sleeve
-    actually paid, because scoring against zero would hand every defensive book a free Sharpe for
-    holding cash. Benchmark rows are set in italic.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="India scorecard, scrollable table" aria-describedby="cap-india">
-      <table>
-        <thead>
-          <tr><th scope="col">Book</th><th scope="col">Sharpe (net)</th><th scope="col">Sharpe (gross)</th><th scope="col">Sortino</th><th scope="col">Max drawdown</th><th scope="col">Calmar</th><th scope="col">Turnover/yr</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>HMM plus drawdown feature</td><td>0.877</td><td>0.896</td><td>1.291</td><td>-6.4%</td><td>1.169</td><td>0.99x</td></tr>
-          <tr><td>Volatility-threshold rule (ablation)</td><td>0.848</td><td>0.863</td><td>1.244</td><td>-6.5%</td><td>1.165</td><td>0.88x</td></tr>
-          <tr><td>Jump Model regimes</td><td>0.829</td><td>0.833</td><td>1.204</td><td>-7.3%</td><td>1.038</td><td>0.24x</td></tr>
-          <tr><td>HMM, regime-conditional (shipped default)</td><td>0.824</td><td>0.841</td><td>1.211</td><td>-6.2%</td><td>1.161</td><td>0.87x</td></tr>
-          <tr><td>HMM plus volatility targeting</td><td>0.824</td><td>0.841</td><td>1.211</td><td>-6.2%</td><td>1.161</td><td>0.87x</td></tr>
-          <tr class="is-benchmark"><td>Equal weight</td><td>0.815</td><td>0.819</td><td>1.167</td><td>-15.2%</td><td>0.625</td><td>0.41x</td></tr>
-          <tr><td>HMM, unconditional</td><td>0.748</td><td>0.758</td><td>1.097</td><td>-6.2%</td><td>1.103</td><td>0.50x</td></tr>
-          <tr class="is-benchmark"><td>Static 60/40 (equity/cash)</td><td>0.604</td><td>0.607</td><td>0.827</td><td>-23.7%</td><td>0.413</td><td>0.36x</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p><strong>Read the Sharpe column and the strategy is unremarkable.</strong> The overlay's point
-    estimate sits above both benchmarks, and entry 05 is the reason that means nothing: no book here
-    is statistically distinguishable from either one. <strong>Read max drawdown and Calmar, the other
-    two metrics the brief names, and the picture inverts</strong>: -6.2% worst drawdown against
-    -15.2% and -23.7%, with Calmar roughly 1.9x and 2.8x the benchmarks. That gap is not noise, it is
-    the mechanical consequence of routing to minimum variance whenever the label is not calm. The
-    overlay buys drawdown protection and pays for it in return. Whether that trade is worth making is
-    a mandate question, not a statistical one.</p>
-
-    <figure class="plate">
-      <img src="img/india_equity_drawdown.png" width="1852" height="851" loading="lazy"
-             alt="Equity curves for every book on top and their drawdowns underneath. The 60 40 book climbs highest and falls furthest, dropping about 24 percent. The HMM books track lower and flatter with a worst drawdown near 6 percent.">
-      <figcaption><b>The trade, drawn.</b> The benchmark ends higher. The overlay never falls far.
-      Those are the same fact seen twice.</figcaption>
+    <figure class="plot">
+      <figcaption>
+        <b>Growth of 1 unit.</b> The shaded bands are the walk-forward regime path, lightest for
+        Bull and darkest for Crisis. Hover or tap for a dated readout.
+      </figcaption>
+      <div id="chart-equity" data-tall="1" data-alt="Growth of one unit for each selected book, with the regime path shaded behind it"></div>
     </figure>
 
-    <p class="table-caption" id="cap-us">US, the robustness universe. Out-of-sample 2016-07-05 to
-    2023-12-29, n = 1,886, risk-free rate zero, with a real bond sleeve. Benchmark rows are set in
-    italic.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="US robustness scorecard, scrollable table" aria-describedby="cap-us">
-      <table>
-        <thead>
-          <tr><th scope="col">Book</th><th scope="col">Sharpe (net)</th><th scope="col">Max drawdown</th><th scope="col">Calmar</th><th scope="col">Turnover/yr</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Volatility-threshold rule (ablation)</td><td>0.958</td><td>-21.9%</td><td>0.446</td><td>3.61x</td></tr>
-          <tr class="is-benchmark"><td>Static 60/40</td><td>0.690</td><td>-27.6%</td><td>0.273</td><td>0.41x</td></tr>
-          <tr><td>Jump Model regimes</td><td>0.682</td><td>-25.1%</td><td>0.262</td><td>1.46x</td></tr>
-          <tr class="is-benchmark"><td>Equal weight</td><td>0.650</td><td>-23.0%</td><td>0.258</td><td>0.42x</td></tr>
-          <tr><td>HMM plus drawdown feature</td><td>0.590</td><td>-28.0%</td><td>0.191</td><td>3.88x</td></tr>
-          <tr><td>HMM plus volatility targeting</td><td>0.562</td><td>-27.3%</td><td>0.182</td><td>4.10x</td></tr>
-          <tr><td>HMM, regime-conditional</td><td>0.542</td><td>-28.7%</td><td>0.170</td><td>4.19x</td></tr>
-          <tr><td>HMM, unconditional</td><td>0.535</td><td>-27.4%</td><td>0.174</td><td>2.74x</td></tr>
-        </tbody>
-      </table>
+    <figure class="plot">
+      <figcaption>
+        <b>Drawdown.</b> This is where the overlay earns its keep on India, and where it does not
+        on the US.
+      </figcaption>
+      <div id="chart-drawdown" data-alt="Drawdown from running peak for each selected book"></div>
+    </figure>
+
+    <div class="pair">
+      <figure class="plot">
+        <figcaption>
+          <b>What each state predicts.</b> Volatility rises with the label exactly as intended.
+          So does return, and that is the wrong direction.
+        </figcaption>
+        <div id="chart-labels"></div>
+      </figure>
+
+      <figure class="plot">
+        <figcaption>
+          <b>The gap, not the level.</b> Two overlapping marginal intervals say nothing about a
+          difference. These books hold the same assets on the same days, so the paired difference
+          is the test the comparison actually rests on.
+          <span class="switch switch--inline" role="group" aria-label="Benchmark">
+            <button type="button" data-bench="60_40" aria-pressed="true">vs 60/40</button>
+            <button type="button" data-bench="equal_weight" aria-pressed="false">vs equal weight</button>
+          </span>
+        </figcaption>
+        <div id="chart-paired"></div>
+      </figure>
     </div>
 
-    <p><strong>The US does not reproduce India, and saying so is the point of running it.</strong>
-    No HMM book improves on either benchmark on Sharpe or Calmar, and the drawdown protection that
-    vindicated the overlay on India does not reappear: the best HMM drawdown here is level with
-    60/40 and well behind equal weight at -23.0%. Minimum variance had nowhere to hide in 2022, when
-    bonds fell alongside equities. A result that held on one market and was quietly assumed to hold on the
-    other would be the more comfortable story. It is not the one the data tells.</p>
-
-    <p class="note"><b>One more thing the sweep decided rather than assumed.</b> Three regimes were
-    chosen to match the economic states being allocated against, then checked with a BIC sweep. It
-    supports three on the primary Indian universe, where the step from three states to four buys
-    only 392 of fit against 6,256 for the step from two to three. It does not support three on the
-    US. Both are reported.</p>
+    <div id="scorecard" class="scorecard"></div>
   </section>
 
-  <!-- ================= VERDICT ================= -->
-  <section class="entry" aria-labelledby="e8">
-    <span class="entry__no" aria-hidden="true">08</span>
-    <h2 id="e8">The verdict</h2>
-    <p class="entry__lede">Hidden Markov states on returns and volatility are volatility states, and
-    volatility carries no directional information. That is the finding, and it outlives this
-    codebase.</p>
-
-    <p>Realised volatility and VIX are symmetric in sign by construction. Any allocator built on
-    them alone will de-risk into rebounds as reliably as into crashes, because it cannot tell the
-    two apart. Finding a directional state needs a signed state variable: credit spreads, market
-    breadth, earnings revisions, positioning, realised skew. Not another estimator on the same
-    features.</p>
-
-    <p>The one thing the overlay does buy is drawdown, and only on one of the two universes tested.
-    Two of the three metrics the brief names favour it there. That is reported as exactly what it
-    is, on one universe, rather than promoted into a headline.</p>
+  <!-- ============================ WHY ============================ -->
+  <section class="why">
+    <h2>Why it fails, in three facts</h2>
+    <ol class="facts">
+      <li>
+        <b>The states order volatility perfectly and return backwards.</b> On both universes the
+        calmest label returns the least and the crisis label the most. Realized volatility and
+        VIX are symmetric in sign: they spike in a crash, then spike again in the rebound.
+      </li>
+      <li>
+        <b>Days are not a sample size, episodes are.</b> India's crisis label spans 261 days but
+        only 14 episodes. Drop the single longest one and its return goes from +18.4% to +53.6%.
+      </li>
+      <li>
+        <b>Four rescues failed on criteria written down first.</b> Re-ranking by return, a jump
+        model, volatility targeting, and a drawdown feature. The drawdown feature now tops the
+        India Sharpe table and is still not adopted, because it failed the test it was given.
+      </li>
+    </ol>
+    <p>
+      One apparent discovery was retracted the same day it was written up, by counting episodes.
+      <a href="story.html">The full log tells it in the order it happened</a>, including the
+      retraction, the pre-registered criteria, and leak-proofing that is asserted by unit tests
+      rather than claimed in prose.
+    </p>
   </section>
 
-  <!-- ================= CLOSE ================= -->
-  <footer class="close">
-    <p class="close__note">Every number on this page is reproducible from the repository. The first
-    run fetches prices from Yahoo Finance, subject to its terms and not redistributed here, and
-    caches them, so every later run is offline and deterministic. FRED macro series are requested
-    by both entry points but were unreachable from the network this was run on, so every published
-    number is macro-free and both entry points say so.</p>
+  <section class="how">
+    <h2>How it is built</h2>
+    <dl class="specs">
+      <div><dt>Regime detection</dt><dd>3-state Gaussian HMM via hmmlearn, causal forward filter for every out-of-sample label</dd></div>
+      <div><dt>Allocation</dt><dd>cvxpy per regime: max Sharpe in Bull, min variance in Bear, equity-capped in Crisis</dd></div>
+      <div><dt>Validation</dt><dd>expanding walk-forward, model refit per fold, scaling fitted on train only, one-day execution lag</dd></div>
+      <div><dt>Costs</dt><dd>7.5 bps per rebalance charged to every book alike, benchmarks included</dd></div>
+      <div><dt>Deflation</dt><dd>probabilistic and deflated Sharpe at 7 declared trials, stationary bootstrap intervals</dd></div>
+      <div><dt>Data</dt><dd>yfinance daily from 2015: NIFTY, an overnight cash fund and gold on India, SPY, TLT and GLD on the US, plus each market's VIX</dd></div>
+    </dl>
+    <p class="micro">
+      Python 3.11+, uv-managed, 67 tests, Apache-2.0. The leak-proofing is asserted rather than
+      stated: flip a future label and the backtest must not notice, or the test fails.
+    </p>
+  </section>
 
-    <div class="actions">
-      <a class="action action--primary" href="https://github.com/DogInfantry/Signals-Before-Storms">Open the repository</a>
-    </div>
+</main>
 
-    <p class="close__note">Anklesh Rawat (DogInfantry). Apache-2.0, under which attribution is a
-    condition rather than a courtesy: Section 4 requires redistributors to retain the notices and
-    reproduce NOTICE. Research and educational code, not investment advice, and none of these
-    results are a recommendation to trade.</p>
-
-    <blockquote>Anklesh Rawat, "Signals-Before-Storms: a macro-aware tactical asset allocation
-    engine", 2026. github.com/DogInfantry/Signals-Before-Storms</blockquote>
-  </footer>
-
-</div>
+<footer class="foot">
+  <span>Anklesh Rawat</span>
+  <a href="https://github.com/DogInfantry/Signals-Before-Storms">github.com/DogInfantry/Signals-Before-Storms</a>
+</footer>
 
 </body>
 </html>
