@@ -9,6 +9,7 @@ can compose panels without this module knowing anything about layout or files.
 
 from __future__ import annotations
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,6 +18,7 @@ from regime_shift.regime import REGIME_NAMES_3, label_episodes
 from regime_shift.style import (
     INK,
     INK_FAINT,
+    INK_SOFT,
     NEUTRAL,
     REGIME_RAMP,
     SERIES_A,
@@ -24,6 +26,7 @@ from regime_shift.style import (
     SURFACE,
     bar_labels,
     callout,
+    display_name,
     pct_axis,
     subtitle,
     use_house_style,
@@ -347,7 +350,7 @@ def sharpe_forest(sharpes: dict, cis: dict, ax=None):
         color=[NEUTRAL if x <= 0 else SERIES_A for x in lo],
     )
     ax.axvline(0.0, color=INK, lw=0.8, ls="--")
-    ax.set_yticks(y, order)
+    ax.set_yticks(y, [display_name(k) for k in order])
     ax.set_xlabel("Sharpe (95% stationary-bootstrap interval)")
     return ax
 
@@ -372,14 +375,23 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
 
     fwd = np.expm1(master.shift(-1)).loc[labels.index, "equity_ret"]
     idx = labels.index
+    # A one-day episode is one fourteenth of the evidence and has to be one fourteenth of the
+    # argument, so it gets a floor on its rendered width. Without this the short episodes come out
+    # as sub-pixel slivers and the figure shows about ten bars while its own subtitle says
+    # fourteen, which is the claim it exists to make.
+    floor_w = 0.045 * float(eps["days"].sum())
+    # A CONSTANT gap, not a proportional one. Scaling the gap with bar width means a run of short
+    # episodes is packed at short-episode pitch, which is what collided their number labels into
+    # an unreadable "91011213 14" at the right-hand end of the axis.
+    gap = 0.55 * floor_w
     rets, widths, centres, pos = [], [], [], 0.0
     for start, end, days in zip(eps["start"], eps["end"], eps["days"], strict=True):
         r = fwd[(idx >= start) & (idx <= end)].dropna()
         rets.append(float((1.0 + r).prod() - 1.0))
-        w = float(days)
+        w = max(float(days), floor_w)
         widths.append(w)
         centres.append(pos + w / 2.0)
-        pos += w * 1.25  # a gap, so adjacent episodes stay countable
+        pos += w + gap
 
     ax = ax or plt.subplots(figsize=(11, 4.5))[1]
     ax.bar(
@@ -395,24 +407,24 @@ def episode_bars(labels: pd.Series, master: pd.DataFrame, label: int | None = No
     )
     ax.axhline(0.0, color=INK, lw=0.9, zorder=4)
     pct_axis(ax, decimals=0)
+    # Round steps, set explicitly. The default locator lands on 2.5% and PercentFormatter then
+    # rounds it for display, which printed an axis reading 5, 3, 0, -2, -5, -8, -10: uneven steps
+    # that a reader will read as data.
+    ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(0.05))
     ax.grid(axis="x", visible=False)
-    # Label only episodes wide enough to carry text. A three-day flicker and a sixty-day crisis
-    # both get a bar, but only the second gets a date, otherwise the short ones overprint.
-    floor = 0.04 * pos
-    ax.set_xticks(
-        centres,
-        [
-            pd.Timestamp(s).strftime("%Y-%m") if w >= floor else ""
-            for s, w in zip(eps["start"], widths, strict=True)
-        ],
-        rotation=90,
-    )
+    # Number the episodes rather than dating them. The count IS the point of the figure, so the
+    # axis should be countable without arithmetic; the dates move to the subtitle, where they
+    # cost nothing and no longer force a 90-degree rotation on labels that mostly came out blank.
+    ax.set_xticks(centres, [str(i + 1) for i in range(len(rets))])
+    ax.set_xlabel("episode, in date order")
     ax.set_ylabel("episode cumulative return")
     neg = sum(v < 0 for v in rets)
+    first = pd.Timestamp(eps["start"].iloc[0]).strftime("%b %Y")
+    last = pd.Timestamp(eps["end"].iloc[-1]).strftime("%b %Y")
     subtitle(
         ax,
-        f"Crisis label: {len(rets)} episodes over {int(eps['days'].sum())} days, only {neg} "
-        f"negative. Bar width = duration.",
+        f"Crisis label, {first} to {last}: {len(rets)} episodes over "
+        f"{int(eps['days'].sum())} days, only {neg} negative. Bar width = duration.",
     )
     return ax
 
@@ -514,8 +526,8 @@ def paired_forest(paired: dict, bench: str, ax=None):
     ax.hlines(y, lo, hi, color=INK_FAINT, lw=2.2, zorder=2)
     ax.scatter(diff, y, s=46, zorder=3, color=[SERIES_A if c else NEUTRAL for c in clears])
     ax.axvline(0.0, color=INK, lw=1.3, ls="--", zorder=1)
-    ax.set_yticks(y, order)
-    ax.set_xlabel(f"Sharpe difference vs {bench}  (95% paired bootstrap)")
+    ax.set_yticks(y, [display_name(k) for k in order])
+    ax.set_xlabel(f"Sharpe difference vs {display_name(bench)}  (95% paired bootstrap)")
     ax.grid(axis="y", visible=False)
     subtitle(ax, "Every interval spans zero: no book separates from the benchmark.")
     return ax
@@ -537,22 +549,37 @@ def story_panel(
     episode_bars(labels, master, ax=fig.add_subplot(gs[0, 1]))
     paired_forest(paired, bench, ax=fig.add_subplot(gs[1, 0]))
 
+    # Horizontal, because the book names are sentences now rather than identifiers, and a rotated
+    # 40-character tick label is a thing a reader has to work at. Deepest loss on top, so the
+    # column reads worst to best downward and the two benchmarks separate themselves at a glance.
     ax4 = fig.add_subplot(gs[1, 1])
-    dd = dict(sorted(drawdowns.items(), key=lambda kv: kv[1]))
+    dd = dict(sorted(drawdowns.items(), key=lambda kv: kv[1], reverse=True))
     names = list(dd)
-    bars = ax4.bar(
-        np.arange(len(names)),
+    y = np.arange(len(names))
+    ax4.barh(
+        y,
         [dd[n] for n in names],
-        0.62,
+        0.66,
         color=[SERIES_A if abs(dd[n]) < 0.10 else SERIES_B for n in names],
         zorder=3,
     )
-    bar_labels(ax4, bars, dy=0.004)
-    ax4.set_xticks(np.arange(len(names)), names, rotation=20, ha="right")
-    pct_axis(ax4)
-    ax4.set_ylabel("worst drawdown")
-    ax4.grid(axis="x", visible=False)
-    ax4.set_ylim(min(dd.values()) * 1.22, 0)  # headroom, else the deepest label clips off-axis
+    span = abs(min(dd.values()))
+    for i, n in enumerate(names):
+        ax4.text(
+            dd[n] - 0.012 * span,
+            i,
+            f"{dd[n]:.1%}",
+            ha="right",
+            va="center",
+            fontsize=9,
+            color=INK_SOFT,
+        )
+    ax4.set_yticks(y, [display_name(n) for n in names])
+    pct_axis(ax4, axis="x")
+    ax4.set_xlabel("worst drawdown")
+    ax4.grid(axis="y", visible=False)
+    # room for the value labels, which sit outside the bar ends, and no more
+    ax4.set_xlim(min(dd.values()) * 1.20, 0)
     subtitle(ax4, "What it DOES buy: a fraction of the benchmark's worst loss.")
 
     fig.suptitle(

@@ -46,6 +46,7 @@ from regime_shift.plots import (
     feature_sanity,
     gross_vs_net,
     label_profile_bars,
+    paired_forest,
     regime_overlay,
     regime_weight_heatmap,
     return_panel,
@@ -65,10 +66,36 @@ out = pathlib.Path("results")
 out.mkdir(exist_ok=True)
 
 
+# Figures the landing page embeds. These also get an SVG, because the page is read on phones and
+# a raster plate either blurs when zoomed or ships at four times the weight to avoid it. Vector
+# text stays sharp at any size and the line art is smaller than the PNG. The PNG is still written
+# for the README and the notebook, and og:image scrapers, which do not render SVG.
+SITE_FIGURES = frozenset(
+    {
+        "story",
+        "label_profile",
+        "episode_bars",
+        "paired_forest",
+        "regime_weights",
+        "sensitivity",
+    }
+)
+# regime_overlay and equity_drawdown stay raster on purpose. They draw several thousand points
+# per series, so the vector version came out 590 kB against a 224 kB PNG: SVG wins on sparse line
+# art and loses on a dense multi-year series.
+
+
+def save_figure(fig, name: str) -> None:
+    """Write one figure: always a PNG, plus an SVG when the site embeds it."""
+    fig.savefig(out / f"{market}_{name}.png", dpi=140, bbox_inches="tight")
+    if name in SITE_FIGURES:
+        fig.savefig(out / f"{market}_{name}.svg", format="svg", bbox_inches="tight")
+
+
 def save(axes, name: str) -> None:
     """Save whatever the plot helpers hand back: a single axis, or an array of them."""
     ax = np.atleast_1d(np.asarray(axes, dtype=object)).ravel()[0]
-    ax.figure.savefig(out / f"{market}_{name}.png", dpi=140, bbox_inches="tight")
+    save_figure(ax.figure, name)
 
 
 cfg = load_config()
@@ -256,7 +283,11 @@ fig = story_panel(
     {k: float(summary(v, rf=rf)["max_drawdown"]) for k, v in books.items()},
     market=market.upper(),
 )
-fig.savefig(out / f"{market}_story.png", dpi=140, bbox_inches="tight")
+save_figure(fig, "story")
+
+# The composite's panels are also written standalone, so the landing page can stack readable
+# plates on a narrow viewport instead of shrinking a four-panel image to illegibility.
+save(paired_forest(paired_vs["60_40"], "60/40"), "paired_forest")
 
 # Effective sample size, made visual: the crisis label's whole reputation is one bar.
 ax = episode_bars(regimes, master)

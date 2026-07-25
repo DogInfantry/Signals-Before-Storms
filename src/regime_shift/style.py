@@ -70,6 +70,26 @@ PALETTES = {
 # Every ink value that lands on the chart surface as a mark or a rule.
 INKS = (INK, INK_SOFT, INK_FAINT, NEUTRAL)
 
+# A figure is published output, so it should not be the one place a reader meets an internal
+# identifier. These strings are copied verbatim from the scorecard tables in docs/index.html, so
+# a reader moving between the page and a figure sees one name for one book.
+DISPLAY_NAMES = {
+    "hmm_drawdown_feat": "HMM plus drawdown feature",
+    "vol_rule_ablation": "Volatility-threshold rule (ablation)",
+    "jump_regime": "Jump Model regimes",
+    "hmm_conditional": "HMM, regime-conditional (shipped default)",
+    "hmm_vol_targeted": "HMM plus volatility targeting",
+    "hmm_unconditional": "HMM, unconditional",
+    "equal_weight": "Equal weight",
+    "60_40": "Static 60/40",
+    "60_40 (eq/cash)": "Static 60/40 (equity/cash)",
+}
+
+
+def display_name(key: str) -> str:
+    """The public name for a book, or the key itself if it has not been given one."""
+    return DISPLAY_NAMES.get(key, key)
+
 
 def use_house_style() -> None:
     """Set rcParams for every figure. Called once at import time by plots."""
