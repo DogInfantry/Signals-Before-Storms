@@ -349,21 +349,13 @@ re-running: identical output. NOTE this also revealed that CLAUDE.md's India tab
 hmm_unconditional CI `( 0.011, 1.469)` / DSR 0.697 while the code produces `( 0.007, 1.469)` /
 DSR 0.698, **on the pre-change code too**. That is pre-existing doc staleness, not a regression.
 
-**STILL OUTSTANDING (the notebook):** `notebooks/driver.ipynb` embeds the OLD figures. Phases 2-4
-changed every one of them. Re-render before considering this finished:
-`uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3` (~5 min).
+**Notebook re-rendered against the new figures** (58 cells, 0 errors, 15 embedded figures,
+verified by parsing the ipynb JSON). Nothing is in flight.
+
+**The only thing left is outward-facing and needs an explicit go-ahead: pushing this branch,
+and the repo topics in step 2 below.**
 
 ## Next steps
-0. **THE ACTIVE WORK: Phases 2-4 of the visual-integrity pass.** Read
-   `C:\Users\Anklesh\.claude\plans\1-fix-2-recursive-gadget.md` first; it is approved and detailed.
-   Phase 2 makes the palette claim true (`style.py`, `plots.py`, new validator + test). Phase 3
-   fixes the figures (countable `episode_bars`, display names, layout waste, standalone
-   `paired_forest`). Phase 4 rebuilds `docs/index.html` (cut three sections, reframe the rescues,
-   `<picture>` for mobile). Then regenerate BOTH universes, copy the India figures into `docs/img/`,
-   and reconcile the figure counts in README and here to what is measured on disk.
-   **One open decision blocks nothing but should be settled early:** the Phase 2c palette test is
-   expected to fail `GOOD`/`BAD`. Either replace those constants or scope the test to exclude a
-   deliberately-kept green/red pair. Ask before choosing.
 1. **DONE 2026-07-25 (`1b24a43`): the notebook is regenerated.** Kept here as the regeneration
    recipe, not as an open task. **NOTE: Phases 2-4 change every figure, so the notebook must be
    re-rendered again once they land.** Two commands, the first only if the generator changed:
