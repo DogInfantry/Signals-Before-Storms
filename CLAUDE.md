@@ -8,6 +8,15 @@ leak-proof with an expanding walk-forward, charge transaction costs, benchmark a
 60/40, equal weight and a no-HMM ablation.
 
 **PUBLIC**: https://github.com/DogInfantry/Signals-Before-Storms (Apache-2.0, CI green).
+**LIVE SITE**: https://signals-before-storms.vercel.app (Vercel project `signals-before-storms`,
+scope `anklesh-s-projects`, GIT-CONNECTED as of 2026-07-26, so **every push to `main` deploys**).
+- **`vercel.json` lives at the REPO ROOT, not in `docs/`, and it must stay there.** The project's
+  Root Directory is the repo root, so `outputDirectory: "docs"` is the only thing making the site
+  serve the right folder. Moving that file back into `docs/` deploys the repository instead, and
+  the repo root has no `index.html`, so production becomes a 404.
+- Repo topics and homepage URL are set. `docs/data/*.json` revalidates every request, `/img/*`
+  caches for a week with revalidation (NOT immutable: two figures changed content without changing
+  filename, and immutable meant a returning reader kept the stale one for a year).
 
 - Repo name decided 2026-07-24. Import package stays `regime_shift` deliberately: renaming would
   churn every import and test for no gain. pyproject distribution name is `signals-before-storms`.

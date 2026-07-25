@@ -2,9 +2,14 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-46_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-67_passing-brightgreen.svg)](tests/)
 [![Ruff](https://img.shields.io/badge/lint-ruff_clean-brightgreen.svg)](https://github.com/astral-sh/ruff)
 [![Result](https://img.shields.io/badge/result-rigorous_negative-orange.svg)](#the-finding)
+
+**[Explore the results interactively](https://signals-before-storms.vercel.app)**; toggle any of
+eight books, switch gross against net of costs, and switch India against the US to watch the
+ranking change. The [full research log](https://signals-before-storms.vercel.app/story) sits
+behind it.
 
 **Signals-Before-Storms is an open-source quantitative finance research engine that detects hidden
 market regimes (Bull, Bear, Crisis) with a Hidden Markov Model, then reallocates a portfolio across
