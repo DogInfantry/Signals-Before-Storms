@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Signals-Before-Storms">
+  <title>Signals-Before-Storms</title>
+  <!-- The project's own encoding, nothing invented: three regimes as an ordinal
+       lightness ramp, ascending risk left to right. Same hexes as
+       src/regime_shift/style.py REGIME_RAMP. -->
+  <rect width="32" height="32" rx="4" fill="#fcfcfb"/>
+  <rect x="5" y="19" width="6" height="9" fill="#e8b84b"/>
+  <rect x="13" y="13" width="6" height="15" fill="#d2691e"/>
+  <rect x="21" y="5" width="6" height="23" fill="#8f1d14"/>
+  <rect x="4" y="28.5" width="24" height="1" fill="#e4e4e1"/>
+</svg>

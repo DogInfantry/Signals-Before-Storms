@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-25T00:00:00Z",
+  "title": "Design System: Signals-Before-Storms",
+  "extensions": {
+    "upstream": {
+      "sourceOfTruth": "src/regime_shift/style.py",
+      "note": "Every page colour is inherited verbatim from the Python module that draws the embedded figures. Its palette was validated by a contrast and colour-vision-deficiency script rather than chosen by eye. A palette change happens in style.py first and reaches docs/style.css second, or the page drifts away from the PNGs it embeds."
+    },
+    "colorMeta": {
+      "surface": { "role": "neutral", "displayName": "Paper", "canonical": "#fcfcfb", "upstream": "style.SURFACE", "tonalRamp": ["#1a1a19", "#333331", "#4d4d4a", "#666663", "#80807c", "#999995", "#b3b3ae", "#fcfcfb"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1c1c1c", "upstream": "style.INK", "tonalRamp": ["#0a0a0a", "#1c1c1c", "#333333", "#4d4d4d", "#666666", "#8f8f8f", "#c2c2c2", "#f0f0f0"] },
+      "ink-soft": { "role": "neutral", "displayName": "Soft Ink", "canonical": "#5c5c5c", "upstream": "style.INK_SOFT", "tonalRamp": ["#141414", "#292929", "#3d3d3d", "#5c5c5c", "#7a7a7a", "#9c9c9c", "#c4c4c4", "#f0f0f0"] },
+      "ink-faint": { "role": "neutral", "displayName": "Faint Ink", "canonical": "#8a8a8a", "upstream": "style.INK_FAINT", "tonalRamp": ["#1f1f1f", "#3b3b3b", "#575757", "#737373", "#8a8a8a", "#a8a8a8", "#cccccc", "#f2f2f2"] },
+      "rule": { "role": "neutral", "displayName": "Hairline", "canonical": "#e4e4e1", "upstream": "style.py grid.color", "tonalRamp": ["#242423", "#3d3d3b", "#585856", "#757572", "#94948f", "#b5b5b0", "#e4e4e1", "#f7f7f5"] },
+      "link": { "role": "primary", "displayName": "Instrument Blue", "canonical": "#1a6ca8", "upstream": "style.SERIES_A", "tonalRamp": ["#061825", "#0b2f4a", "#10476f", "#155e93", "#1a6ca8", "#3d90cc", "#7ab8e5", "#c6e0f5"] },
+      "good": { "role": "secondary", "displayName": "Held Green", "canonical": "#2e7d32", "upstream": "style.GOOD", "tonalRamp": ["#0b1f0c", "#153a17", "#1f5622", "#28712c", "#2e7d32", "#4fa354", "#6fbf73", "#b7e2b9"] },
+      "bad": { "role": "secondary", "displayName": "Warning Vermilion", "canonical": "#b3261e", "upstream": "style.BAD", "tonalRamp": ["#2b0906", "#4d100c", "#701712", "#911e18", "#b3261e", "#d4564d", "#ef8a80", "#f8c6c1"] },
+      "regime-0": { "role": "tertiary", "displayName": "Regime 0, Sand (Bull)", "canonical": "#e8b84b", "upstream": "style.REGIME_RAMP[0]", "darkModeSwatch": "#f0cd72", "tonalRamp": ["#2e2409", "#4d3c11", "#6d551a", "#8c6d22", "#ab862b", "#cba03a", "#e8b84b", "#f5dda1"] },
+      "regime-1": { "role": "tertiary", "displayName": "Regime 1, Ember (Bear)", "canonical": "#d2691e", "upstream": "style.REGIME_RAMP[1]", "darkModeSwatch": "#e08343", "tonalRamp": ["#2a1506", "#48240a", "#66330e", "#844213", "#a25117", "#d2691e", "#e08343", "#f3c4a1"] },
+      "regime-2": { "role": "tertiary", "displayName": "Regime 2, Oxide (Crisis)", "canonical": "#8f1d14", "upstream": "style.REGIME_RAMP[2]", "darkModeSwatch": "#cf5344", "tonalRamp": ["#1f0604", "#3a0c08", "#55130d", "#701711", "#8f1d14", "#b53a2f", "#cf5344", "#eeb2ab"] },
+      "ground-dark": { "role": "neutral", "displayName": "Night Ground", "canonical": "#16171a", "tonalRamp": ["#0b0c0d", "#16171a", "#232529", "#2e3036", "#4a4d55", "#6d7078", "#a3a6ad", "#dedfe2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The cover headline only, once per page, with a 0.42em standfirst at weight 500 in soft ink beneath it." },
+      "headline": { "displayName": "Headline", "purpose": "The title of each numbered entry, capped at 24ch so it breaks to two or three lines." },
+      "title": { "displayName": "Title", "purpose": "Sub-headings inside an entry, often prefixed by a failed or held stamp." },
+      "lede": { "displayName": "Lede", "purpose": "One soft-ink paragraph under each entry headline, capped at 60ch. Reading only the eight ledes gives the whole argument in order." },
+      "body": { "displayName": "Body", "purpose": "Argument text at 68ch. Bold runs at weight 650 in full ink and carries the claim a scanning reader should catch." },
+      "secondary": { "displayName": "Secondary", "purpose": "Marginal notes, figure captions, table captions and colophon, in soft ink at 52 to 66ch." },
+      "label": { "displayName": "Label", "purpose": "Mono entry numbers at 0.06em tracking; also the sans 600-weight register for table headers and masthead identity." },
+      "micro": { "displayName": "Micro", "purpose": "Mono index numbers and the outlined failed / held stamps at 0.08em tracking." }
+    },
+    "shadows": [
+      {
+        "name": "entry-marker-ring",
+        "value": "inset 0 0 0 1px #8a8a8a",
+        "purpose": "The only box-shadow in the system. Draws a 7px hollow ring on the margin rule beside an entry number. It is a hairline, not an elevation step, and must not be generalised into a shadow vocabulary."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "140ms ease",
+        "purpose": "Border, colour and background on the two action buttons. The only state transition on the page."
+      },
+      {
+        "name": "draw-rule",
+        "value": "animation: draw-rule linear both; animation-timeline: view(); animation-range: entry 5% entry 55%; @keyframes draw-rule { from { transform: scaleY(0) } to { transform: scaleY(1) } }",
+        "purpose": "The page's single authored motion moment: the ruled margin draws downward as an entry scrolls into view. Gated behind @supports (animation-timeline: view()), prefers-reduced-motion: no-preference, and min-width 62rem. Defaults to fully drawn, so nothing depends on it."
+      }
+    ],
+    "breakpoints": [
+      { "name": "index-2col", "value": "42rem" },
+      { "name": "ledger-2col", "value": "48rem" },
+      { "name": "margin-column", "value": "62rem" },
+      { "name": "index-4col", "value": "68rem" }
+    ],
+    "measure": [
+      { "name": "body", "value": "68ch" },
+      { "name": "caption", "value": "66ch" },
+      { "name": "ledger-definition", "value": "62ch" },
+      { "name": "lede", "value": "60ch" },
+      { "name": "note", "value": "52ch" },
+      { "name": "colophon", "value": "46ch" },
+      { "name": "entry-headline", "value": "24ch" }
+    ],
+    "constraints": [
+      "No build step, no JavaScript, no external requests. HTML, one stylesheet, one SVG favicon, committed PNGs.",
+      "Deployed on Vercel with framework preset Other and Root Directory docs.",
+      "No em dashes or en dashes anywhere, including in comments."
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "action-primary",
+      "description": "The one action on the page, pointing at the repository. Used twice, on the cover and at the close.",
+      "html": "<a class=\"ds-action ds-action--primary\" href=\"#\">Read the code on GitHub</a>",
+      "css": ".ds-action { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.62rem 1.05rem; border: 1px solid #e4e4e1; border-radius: 3px; color: #1c1c1c; text-decoration: none; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; font-size: 0.9375rem; font-weight: 550; transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease; } .ds-action--primary { background: #1a6ca8; border-color: #1a6ca8; color: #fcfcfb; } .ds-action--primary:hover { background: #15578a; border-color: #15578a; } .ds-action--primary:focus-visible { outline: 2px solid #1a6ca8; outline-offset: 3px; border-radius: 2px; }"
+    },
+    {
+      "name": "Ghost Action",
+      "kind": "button",
+      "refersTo": "action-ghost",
+      "description": "The in-page skip link beside the primary action. Hairline border, ink label, no fill.",
+      "html": "<a class=\"ds-action-ghost\" href=\"#\">Skip to the verdict</a>",
+      "css": ".ds-action-ghost { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.62rem 1.05rem; border: 1px solid #e4e4e1; border-radius: 3px; background: transparent; color: #1c1c1c; text-decoration: none; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; font-size: 0.9375rem; font-weight: 550; transition: border-color 140ms ease; } .ds-action-ghost:hover { border-color: #8a8a8a; } .ds-action-ghost:focus-visible { outline: 2px solid #1a6ca8; outline-offset: 3px; }"
+    },
+    {
+      "name": "Index of Entries",
+      "kind": "nav",
+      "description": "The log's contents page. Mono number in faint ink beside a hairline-underlined ink link. One column on a phone, two at 42rem, four at 68rem.",
+      "html": "<nav class=\"ds-index\" aria-label=\"Entries in this log\"><ol><li><span class=\"ds-index__no\">01</span><a href=\"#\">What was built</a></li><li><span class=\"ds-index__no\">02</span><a href=\"#\">The first result, and the whole problem</a></li><li><span class=\"ds-index__no\">03</span><a href=\"#\">Four rescues, each pre-registered, each failed</a></li><li><span class=\"ds-index__no\">04</span><a href=\"#\">The retraction</a></li></ol></nav>",
+      "css": ".ds-index { padding: 1.5rem 0; border-bottom: 1px solid #e4e4e1; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; } .ds-index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem 2rem; } @media (min-width: 42rem) { .ds-index ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } } .ds-index li { display: flex; gap: 0.6rem; align-items: baseline; font-size: 0.9rem; } .ds-index__no { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; color: #8a8a8a; flex: none; } .ds-index a { color: #1c1c1c; text-decoration: none; border-bottom: 1px solid #e4e4e1; } .ds-index a:hover { border-bottom-color: #8a8a8a; } .ds-index a:focus-visible { outline: 2px solid #1a6ca8; outline-offset: 3px; }"
+    },
+    {
+      "name": "Entry Header",
+      "kind": "custom",
+      "refersTo": "entry-number",
+      "description": "A numbered entry against the ruled margin column. Above 62rem the mono number sits outside the rule with a 7px hollow ring on it; below that the rule disappears and the number becomes a block label.",
+      "html": "<section class=\"ds-entry\"><span class=\"ds-entry__no\" aria-hidden=\"true\">02</span><h2>The first result, and the whole problem</h2><p class=\"ds-entry__lede\">Measured at the lag the strategy actually trades: the label is known at the close of day t, the return is earned on day t plus one.</p></section>",
+      "css": ".ds-entry { position: relative; padding: 2.5rem 0; border-bottom: 1px solid #e4e4e1; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; } .ds-entry h2 { font-size: 2.05rem; font-weight: 640; line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 0.85rem; max-width: 24ch; color: #1c1c1c; text-wrap: balance; } .ds-entry__lede { font-size: 1.075rem; line-height: 1.62; color: #5c5c5c; max-width: 60ch; margin: 0; } .ds-entry__no { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8125rem; color: #8a8a8a; letter-spacing: 0.06em; margin-bottom: 0.55rem; } @media (min-width: 62rem) { .ds-entry { padding-left: 5.5rem; } .ds-entry::before { content: \"\"; position: absolute; left: 3.25rem; top: 0; bottom: 0; width: 1px; background: #e4e4e1; } .ds-entry__no { position: absolute; left: 0; margin-bottom: 0; padding-top: 0.35rem; } .ds-entry__no::after { content: \"\"; position: absolute; top: 0.95rem; right: -2.32rem; width: 7px; height: 7px; border-radius: 50%; background: #fcfcfb; box-shadow: inset 0 0 0 1px #8a8a8a; } }"
+    },
+    {
+      "name": "Verdict Stamps",
+      "kind": "chip",
+      "refersTo": "stamp-fail",
+      "description": "Two variants only. failed in vermilion, held in green, both as a currentColor outline in mono. Placed inline at the head of the sentence they qualify, so the verdict is read before the explanation.",
+      "html": "<p style=\"font-family: system-ui, sans-serif; color: #1c1c1c; margin: 0;\"><span class=\"ds-stamp ds-stamp--fail\">failed</span>Reordering cannot add information the state space does not contain.</p><p style=\"font-family: system-ui, sans-serif; color: #1c1c1c; margin: 0.6rem 0 0;\"><span class=\"ds-stamp ds-stamp--held\">held</span>Leak-proofing, asserted by tests.</p>",
+      "css": ".ds-stamp { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; letter-spacing: 0.08em; padding: 0.12rem 0.4rem; border: 1px solid currentColor; border-radius: 2px; margin-right: 0.5rem; vertical-align: 0.08em; } .ds-stamp--fail { color: #b3261e; } .ds-stamp--held { color: #2e7d32; }"
+    },
+    {
+      "name": "Regime Key",
+      "kind": "chip",
+      "refersTo": "regime-key-crisis",
+      "description": "A 0.62rem swatch from the ordinal lightness ramp beside a named regime, used only inside tables. The ramp appears nowhere else.",
+      "html": "<span class=\"ds-key ds-key--0\">0 Bull</span> <span class=\"ds-key ds-key--1\">1 Bear</span> <span class=\"ds-key ds-key--2\">2 Crisis</span>",
+      "css": ".ds-key { display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; font-size: 0.9rem; color: #1c1c1c; margin-right: 0.9rem; } .ds-key::before { content: \"\"; width: 0.62rem; height: 0.62rem; border-radius: 2px; background: var(--ds-swatch, #8a8a8a); flex: none; transform: translateY(0.02rem); } .ds-key--0 { --ds-swatch: #e8b84b; } .ds-key--1 { --ds-swatch: #d2691e; } .ds-key--2 { --ds-swatch: #8f1d14; }"
+    },
+    {
+      "name": "Scorecard Table",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "The page's signature component. Tabular figures, sticky soft-ink header, italic soft-ink benchmark rows, and no best-in-column colour marking. The caption sits outside the scroll container and is linked by aria-describedby, because a real caption inherits the table min-width and gets clipped on a phone.",
+      "html": "<p class=\"ds-table-caption\" id=\"ds-cap\">India, the primary universe. Benchmark rows are set in italic.</p><div class=\"ds-scroll\" tabindex=\"0\" role=\"region\" aria-label=\"India scorecard, scrollable table\" aria-describedby=\"ds-cap\"><table class=\"ds-table\"><thead><tr><th scope=\"col\">Book</th><th scope=\"col\">Sharpe (net)</th><th scope=\"col\">Max drawdown</th><th scope=\"col\">Calmar</th></tr></thead><tbody><tr><td>HMM, regime-conditional</td><td>0.824</td><td>-6.2%</td><td>1.161</td></tr><tr class=\"ds-is-benchmark\"><td>Equal weight</td><td>0.815</td><td>-15.2%</td><td>0.625</td></tr><tr class=\"ds-is-benchmark\"><td>Static 60/40</td><td>0.604</td><td>-23.7%</td><td>0.413</td></tr></tbody></table></div>",
+      "css": ".ds-table-caption { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #5c5c5c; font-size: 0.875rem; line-height: 1.55; max-width: 66ch; margin: 0 0 0.5rem; } .ds-scroll { overflow-x: auto; margin: 0 0 1.75rem; border-top: 1px solid #e4e4e1; border-bottom: 1px solid #e4e4e1; } .ds-scroll:focus-visible { outline: 2px solid #1a6ca8; outline-offset: 3px; } .ds-table { border-collapse: collapse; width: 100%; min-width: 34rem; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; font-size: 0.9rem; color: #1c1c1c; } .ds-table th, .ds-table td { text-align: right; padding: 0.5rem 0.55rem; border-bottom: 1px solid #e4e4e1; font-variant-numeric: tabular-nums; white-space: nowrap; } .ds-table th:first-child, .ds-table td:first-child { text-align: left; white-space: normal; min-width: 13rem; } .ds-table thead th { color: #5c5c5c; font-weight: 600; font-size: 0.8125rem; position: sticky; top: 0; background: #fcfcfb; } .ds-table tbody tr:last-child td { border-bottom: 0; } .ds-table tr.ds-is-benchmark td { color: #5c5c5c; } .ds-table tr.ds-is-benchmark td:first-child { font-style: italic; }"
+    },
+    {
+      "name": "Figure Plate",
+      "kind": "card",
+      "refersTo": "plate",
+      "description": "The only container in the system. A figure on a fixed light plate with a hairline border, linked to its full-size PNG because a four-panel composite renders at roughly 170px per panel on a phone. The caption opens with a bold ink lead-in stating the finding.",
+      "html": "<figure class=\"ds-plate\"><a class=\"ds-plate__link\" href=\"#\"><img src=\"img/india_label_profile.png\" alt=\"Bars of next-day annualised return and annualised volatility for each regime label. Volatility climbs steeply; return climbs too, against the expected slope drawn beside it.\"></a><figcaption><b>The measured slope beside the expected one.</b> The return bars climb, which is exactly backwards from what the stance map is betting on.</figcaption></figure>",
+      "css": ".ds-plate { margin: 2rem 0; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; } .ds-plate__link { display: block; text-decoration: none; } .ds-plate__link:focus-visible { outline: 2px solid #1a6ca8; outline-offset: 3px; } .ds-plate img { display: block; width: 100%; height: auto; background: #fcfcfb; border: 1px solid #e4e4e1; border-radius: 2px; } .ds-plate figcaption { margin-top: 0.7rem; font-size: 0.875rem; line-height: 1.55; color: #5c5c5c; max-width: 66ch; } .ds-plate figcaption b { color: #1c1c1c; font-weight: 620; }"
+    },
+    {
+      "name": "Marginal Note",
+      "kind": "custom",
+      "description": "A rule-topped aside at 52ch in soft ink, used where a researcher would have written in the gutter. It interrupts the argument without boxing itself off.",
+      "html": "<p class=\"ds-note\"><b>The states are not noise.</b> The transition matrix diagonal runs 0.97 to 0.98, so the regimes persist rather than flickering.</p>",
+      "css": ".ds-note { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; font-size: 0.875rem; line-height: 1.55; color: #5c5c5c; border-top: 1px solid #e4e4e1; padding-top: 0.7rem; margin: 1.75rem 0; max-width: 52ch; } .ds-note b { color: #1c1c1c; font-weight: 620; }"
+    },
+    {
+      "name": "Rescue Ledger",
+      "kind": "custom",
+      "description": "A rule-separated definition list pairing each attempt with its pre-registered criterion and its stamped outcome. Two columns at 48rem and above, stacked below it.",
+      "html": "<div class=\"ds-ledger\"><dl><dt>Volatility targeting at 10%</dt><dd class=\"ds-criterion\"><b>Criterion:</b> a constant risk budget should help if the book is taking too much risk in the wrong states.</dd><dd><span class=\"ds-stamp ds-stamp--fail\">failed</span>US 0.542 to 0.562, bit-identical on India. It barely binds. The strategy is not taking too much risk, it is taking far too little.</dd></dl></div>",
+      "css": ".ds-ledger { margin: 1.75rem 0 0; display: grid; gap: 1.6rem; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; } .ds-ledger > dl { display: grid; gap: 0.35rem 1.5rem; margin: 0; padding-top: 1.2rem; border-top: 1px solid #e4e4e1; } @media (min-width: 48rem) { .ds-ledger > dl { grid-template-columns: minmax(11rem, 15rem) 1fr; } } .ds-ledger dt { font-weight: 640; color: #1c1c1c; } .ds-ledger dd { margin: 0; color: #5c5c5c; max-width: 62ch; } .ds-ledger dd + dd { margin-top: 0.3rem; } .ds-criterion { font-size: 0.9rem; } .ds-criterion b { color: #1c1c1c; font-weight: 620; } .ds-stamp { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; letter-spacing: 0.08em; padding: 0.12rem 0.4rem; border: 1px solid currentColor; border-radius: 2px; margin-right: 0.5rem; vertical-align: 0.08em; } .ds-stamp--fail { color: #b3261e; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ruled Research Log",
+    "overview": "This is a laboratory notebook that happens to be a web page. Numbered entries run down a ruled margin in the order the work actually happened, an index of entries sits where a contents page would, marginal notes interrupt the argument where a researcher would have written in the gutter, and every finding arrives attached to a tabular figure. The page reports a failed strategy in the order it failed, so the form is chronological rather than promotional. There is no card grid, no hero gradient, no downloaded typeface, and no scoreboard.\n\nThe palette is not original to this page and must not be treated as such. It is inherited verbatim from src/regime_shift/style.py, the Python module that draws every PNG the page embeds. That module validated its colours with a contrast and colour-vision-deficiency script rather than choosing them by eye, and that check caught a real defect in the previously shipped palette (an amber at 1.92:1 against the chart surface, under the 3:1 floor, in a green/amber/red triad that collapses under red-green colour blindness). The page therefore agrees with its contents instead of fighting them, and the CSS declares the upstream hexes as the source values with derived aliases on top.\n\nDensity is high and deliberately so. Body text is capped at 68ch, secondary text at 52 to 66ch, and headings at 24ch, because the reader is a recruiter or a practising quant scanning on a phone with under a minute of patience. Every visual device on the page is either a hairline rule, a numeral, or a chart. The one authored motion moment (the margin rule drawing downward on scroll) is gated and defaults to fully drawn, so nothing on the page depends on animation, JavaScript, or a network request beyond the stylesheet and the committed PNGs.",
+    "keyCharacteristics": [
+      "Inherited palette, validated upstream in style.py, never re-picked at the page level",
+      "Ordinal regime encoding by lightness, never by three arbitrary hues",
+      "System font stack by decision: no build step, and the matplotlib figures set the typographic register",
+      "Hairline rules and tonal shift only; no drop shadows anywhere",
+      "Numbered entries against a ruled margin column, with an index of entries above them",
+      "Every number set in tabular figures, mono at the masthead, entry numbers, index numbers and diagram sublabels",
+      "Zero build step, zero JavaScript, zero external requests"
+    ],
+    "rules": [
+      { "name": "The Upstream Palette Rule", "body": "src/regime_shift/style.py is the source of truth for colour. A change to the page palette happens there first and reaches the CSS second, because the page embeds PNGs drawn with those exact values. Edit the CSS alone and the container drifts away from its contents. A colour that has not been through that module's contrast and colour-vision check does not belong on this page.", "section": "colors" },
+      { "name": "The Ordinal Ramp Rule", "body": "Regimes are ordinal (Bull to Bear to Crisis, ascending risk), so they are encoded by lightness, not by hue. Three arbitrary hues would lose the ordering and collapse under red-green colour blindness. Any new ordered scale on this page follows the same discipline.", "section": "colors" },
+      { "name": "The Regime-Only Rule", "body": "The ramp appears only where a regime is named. It is never borrowed as a generic accent, a highlight, or decoration, because its meaning is the whole reason it survives a colour-vision check.", "section": "colors" },
+      { "name": "The Dark Swatch Exception", "body": "In dark mode the three regime swatches lighten to #f0cd72, #e08343, #cf5344, because #8f1d14 on #16171a is nearly invisible. Lightness ordering is preserved, so the encoding stays ordinal. The figures themselves keep the true ramp, since they sit on a fixed light plate.", "section": "colors" },
+      { "name": "The Fixed Plate Rule", "body": "Figures always render on #fcfcfb regardless of colour scheme. The PNGs carry a baked-in light surface, so the container matches the image rather than the page. In dark mode the plate keeps its light fill and swaps only its border.", "section": "colors" },
+      { "name": "The System Stack Rule", "body": "No downloaded typeface, ever. The figures are drawn in platform faces and there is no build step to subset anything, so a webfont would cost a request to create a mismatch.", "section": "typography" },
+      { "name": "The Tabular Numeral Rule", "body": "Every number on the page is set with font-variant-numeric: tabular-nums: table cells, inline code, and the .num span. Scorecard columns are read down, and proportional figures make a column of Sharpe ratios ragged and slower to scan.", "section": "typography" },
+      { "name": "The One Lede Rule", "body": "Each entry opens with exactly one soft-ink lede at 1.075rem before any body copy. A reader skimming only the eight ledes gets the whole argument in order.", "section": "typography" },
+      { "name": "The Margin Rule", "body": "Above 62rem every entry carries a 1px ruled edge in #e4e4e1 with its number outside the rule. This is the page's signature and its only structural ornament. It is also the page's only authored motion: the rule scales from scaleY(0) to scaleY(1) across animation-range entry 5% to entry 55% using animation-timeline: view(), gated behind both @supports and prefers-reduced-motion: no-preference, and defaults to fully drawn so nothing depends on it.", "section": "layout" },
+      { "name": "The Measure Rule", "body": "No text block runs wider than its role's cap. Secondary text is always narrower than body text, which is always narrower than the container. The hierarchy is legible from line length alone.", "section": "layout" },
+      { "name": "The Hairline-Only Rule", "body": "Separation is a 1px rule or a tonal step, never a shadow. If a surface needs to be distinguished, rule it or shift its ink; do not lift it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do change src/regime_shift/style.py first when the palette must change, then mirror it into the CSS :root block. The page embeds figures drawn from that module.",
+      "Do encode ordered data by lightness, following the regime ramp's precedent.",
+      "Do set every number in tabular figures, in mono or with font-variant-numeric: tabular-nums.",
+      "Do separate content with 1px hairline rules in #e4e4e1 and tonal ink steps.",
+      "Do keep the regime ramp exclusive to places where a regime is named.",
+      "Do put table captions outside the scroll container and link them with aria-describedby.",
+      "Do give scrollable regions tabindex=\"0\", role=\"region\" and an aria-label.",
+      "Do cap authored SVG at its intended scale (the pipeline diagram at max-width 26rem) so schematic labels stay subordinate to body text.",
+      "Do open every entry with exactly one soft-ink lede.",
+      "Do gate any motion behind prefers-reduced-motion and a @supports test, and default to the finished state."
+    ],
+    "donts": [
+      "Don't introduce a colour that has not been through the upstream contrast and colour-vision check, and don't re-pick a page colour that already exists in style.py.",
+      "Don't substitute three arbitrary hues for the lightness ramp on ordered data.",
+      "Don't add a drop shadow. The one box-shadow present is an inset hairline ring on the entry marker, not an elevation step.",
+      "Don't add a downloaded typeface. There is no build step, and the figures set the register.",
+      "Don't colour-rank cells in the scorecards. Several rows tie on max drawdown and Calmar, and a best-in-column marker would be wrong by inspection before it was ever misleading.",
+      "Don't wrap content in cards or a card grid. Ruled bands are the container vocabulary.",
+      "Don't exceed the per-role measure caps (68ch body, 60ch lede, 66ch caption, 52ch note, 24ch entry headline).",
+      "Don't add JavaScript, an external font or an external asset request. The page ships as HTML, one stylesheet, one SVG favicon and committed PNGs.",
+      "Don't use em dashes or en dashes anywhere on the page or in its comments. Hyphens, commas and parentheses only."
+    ]
+  }
+}

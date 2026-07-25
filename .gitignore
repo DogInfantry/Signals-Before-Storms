@@ -25,6 +25,9 @@ data/*
 results/*
 !results/.gitkeep
 
+# Vercel CLI link artifacts
+.vercel
+
 # Env / secrets
 .env
 *.local

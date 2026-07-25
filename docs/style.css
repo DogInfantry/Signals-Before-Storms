@@ -1,0 +1,533 @@
+/* Signals-Before-Storms.
+   The visual world is inherited, not invented. Every colour below is lifted from
+   src/regime_shift/style.py, which validated them with a contrast and colour-vision
+   script. The page embeds figures drawn with those exact values, so the container
+   agrees with its contents instead of fighting them. */
+
+:root {
+  /* from style.py */
+  --surface: #fcfcfb;
+  --ink: #1c1c1c;
+  --ink-soft: #5c5c5c;
+  --ink-faint: #8a8a8a;
+  --rule: #e4e4e1;
+  --series-a: #1a6ca8;
+  --good: #2e7d32;
+  --bad: #b3261e;
+  --regime-0: #e8b84b;
+  --regime-1: #d2691e;
+  --regime-2: #8f1d14;
+
+  /* derived */
+  --ground: var(--surface);
+  --plate: var(--surface);
+  --plate-edge: var(--rule);
+  --link: var(--series-a);
+
+  --measure: 68ch;
+  --margin-col: 5.5rem;
+  --gap: clamp(1.25rem, 3vw, 2.25rem);
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #16171a;
+    --ink: #ececea;
+    --ink-soft: #b3b2ae;
+    --ink-faint: #85847f;
+    --rule: #2e3036;
+    --link: #7ab8e5;
+    --good: #6fbf73;
+    --bad: #ef8a80;
+    /* figures keep their own light surface, so they get a plate rather than the page ground */
+    --plate: #fcfcfb;
+    --plate-edge: #2e3036;
+    /* The swatches are UI chrome on the dark ground, not chart ink: #8f1d14 on #16171a is
+       almost invisible. Lightness order is preserved, so the encoding stays ordinal. The
+       figures themselves sit on a light plate and keep the true ramp. */
+    --regime-0: #f0cd72;
+    --regime-1: #e08343;
+    --regime-2: #cf5344;
+  }
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+  line-height: 1.62;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: from-font;
+}
+
+a:focus-visible,
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+img { max-width: 100%; height: auto; }
+
+h1, h2, h3 {
+  text-wrap: balance;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+p { margin: 0 0 1.1em; max-width: var(--measure); }
+p:last-child { margin-bottom: 0; }
+
+strong { font-weight: 650; color: var(--ink); }
+
+code, .num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.94em;
+}
+
+/* ---- page frame: a ruled log ---------------------------------------------- */
+
+.log {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem) clamp(1.15rem, 4vw, 3rem) 0;
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: baseline;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+.masthead__id { color: var(--ink-soft); font-weight: 600; }
+.masthead__meta { font-family: var(--mono); }
+
+/* ---- cover ---------------------------------------------------------------- */
+
+.cover {
+  display: grid;
+  gap: var(--gap) clamp(2rem, 5vw, 4rem);
+  grid-template-columns: 1fr;
+  padding: clamp(1.75rem, 4vw, 3rem) 0 clamp(2rem, 5vw, 3.5rem);
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (min-width: 62rem) {
+  .cover { grid-template-columns: minmax(28ch, 42ch) 1fr; align-items: start; }
+}
+
+.cover h1 {
+  font-size: clamp(2.05rem, 1.25rem + 3.1vw, 3rem);
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.1rem;
+}
+
+.cover h1 .quiet {
+  display: block;
+  font-size: 0.42em;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  color: var(--ink-soft);
+  margin-top: 0.7rem;
+  line-height: 1.45;
+}
+
+.verdict {
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 1.15rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--bad);
+  max-width: 52ch;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.6rem 0.75rem; align-items: center; }
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 1.05rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 550;
+  transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.action:hover { border-color: var(--ink-faint); }
+
+.action--primary {
+  background: var(--link);
+  border-color: var(--link);
+  color: #fcfcfb;
+}
+
+.action--primary:hover { background: #15578a; border-color: #15578a; }
+
+@media (prefers-color-scheme: dark) {
+  .action--primary { color: #16171a; }
+  .action--primary:hover { background: #a3d0f2; border-color: #a3d0f2; }
+}
+
+.cover__figure { margin: 0; }
+
+/* ---- index of entries ----------------------------------------------------- */
+/* The form's own device. A log has a contents page, and it is also the honest answer to
+   a reader who has forty seconds rather than five minutes. */
+
+.index { padding: 1.5rem 0; border-bottom: 1px solid var(--rule); }
+
+.index ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem 2rem;
+}
+
+@media (min-width: 42rem) { .index ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 68rem) { .index ol { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.index li { display: flex; gap: 0.6rem; align-items: baseline; font-size: 0.9rem; }
+
+.index__no {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.index a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+.index a:hover { border-bottom-color: var(--ink-faint); }
+
+/* ---- entries -------------------------------------------------------------- */
+
+.entry {
+  position: relative;
+  padding: clamp(2.5rem, 6vw, 4rem) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (min-width: 62rem) {
+  .entry { padding-left: var(--margin-col); }
+  /* the margin rule: a notebook's ruled edge, and the page's only authored motion */
+  .entry::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--margin-col) - 2.25rem);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--rule);
+    transform-origin: top;
+  }
+}
+
+.entry__no {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.55rem;
+}
+
+@media (min-width: 62rem) {
+  .entry__no {
+    position: absolute;
+    left: 0;
+    margin-bottom: 0;
+    padding-top: 0.35rem;
+  }
+  .entry__no::after {
+    content: "";
+    position: absolute;
+    top: 0.95rem;
+    right: -2.32rem;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ground);
+    box-shadow: inset 0 0 0 1px var(--ink-faint);
+  }
+}
+
+.entry h2 {
+  font-size: clamp(1.5rem, 1.2rem + 1.1vw, 2.05rem);
+  font-weight: 640;
+  margin-bottom: 0.85rem;
+  max-width: 24ch;
+}
+
+.entry__lede {
+  font-size: 1.075rem;
+  color: var(--ink-soft);
+  max-width: 60ch;
+  margin-bottom: 1.75rem;
+}
+
+.entry h3 {
+  font-size: 1.02rem;
+  font-weight: 640;
+  margin: 2rem 0 0.6rem;
+}
+
+/* ---- marginal notes ------------------------------------------------------- */
+
+.note {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--rule);
+  padding-top: 0.7rem;
+  margin: 1.75rem 0;
+  max-width: 52ch;
+}
+
+.note b { color: var(--ink); font-weight: 620; }
+
+/* ---- figures -------------------------------------------------------------- */
+
+.plate { margin: 2rem 0; }
+
+/* These are dense multi-panel charts. On a phone the composite renders four plots at about
+   170px each, so the image is also a link to its own full-size file. */
+.plate__link { display: block; text-decoration: none; }
+
+.plate img {
+  display: block;
+  width: 100%;
+  background: var(--plate);
+  border: 1px solid var(--plate-edge);
+  border-radius: 2px;
+}
+
+.plate figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 66ch;
+}
+
+.plate figcaption b { color: var(--ink); font-weight: 620; }
+
+/* ---- tables --------------------------------------------------------------- */
+
+.scroll {
+  overflow-x: auto;
+  margin: 0 0 1.75rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 34rem;
+  font-size: 0.9rem;
+}
+
+/* Captions sit OUTSIDE the scroller. A table caption inherits the table's min-width, so on a
+   phone it wraps at 544px and half the sentence ends up off screen behind a horizontal scroll.
+   The scroll region references these by aria-describedby, so the association survives. */
+.table-caption {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  max-width: 66ch;
+  margin: 1.75rem 0 0.5rem;
+}
+
+th, td {
+  text-align: right;
+  padding: 0.5rem 0.55rem;
+  border-bottom: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+th:first-child, td:first-child { text-align: left; white-space: normal; min-width: 13rem; }
+
+thead th {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  position: sticky;
+  top: 0;
+  background: var(--ground);
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+
+/* No best-in-column marking. Several rows tie on max drawdown and Calmar, so a colour
+   marker read as "best" would be wrong by inspection, and entry 05 is the reason ranking
+   these point estimates means nothing anyway. Benchmarks are distinguished, not scored. */
+tr.is-benchmark td { color: var(--ink-soft); }
+tr.is-benchmark td:first-child { font-style: italic; }
+
+/* ---- regime keys ---------------------------------------------------------- */
+
+.key { display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap; }
+
+.key::before {
+  content: "";
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 2px;
+  background: var(--swatch, var(--ink-faint));
+  flex: none;
+  transform: translateY(0.02rem);
+}
+
+.key--0 { --swatch: var(--regime-0); }
+.key--1 { --swatch: var(--regime-1); }
+.key--2 { --swatch: var(--regime-2); }
+
+/* ---- the rescue ledger ---------------------------------------------------- */
+
+.ledger { margin: 1.75rem 0 0; display: grid; gap: 1.6rem; }
+
+.ledger > dl {
+  display: grid;
+  gap: 0.35rem 1.5rem;
+  margin: 0;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+}
+
+@media (min-width: 48rem) {
+  .ledger > dl { grid-template-columns: minmax(11rem, 15rem) 1fr; }
+}
+
+.ledger dt { font-weight: 640; }
+.ledger dd { margin: 0; color: var(--ink-soft); max-width: 62ch; }
+.ledger dd + dd { margin-top: 0.3rem; }
+.ledger .criterion { font-size: 0.9rem; }
+.ledger .criterion b { color: var(--ink); font-weight: 620; }
+
+.stamp {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  margin-right: 0.5rem;
+  vertical-align: 0.08em;
+}
+
+.stamp--fail { color: var(--bad); }
+.stamp--held { color: var(--good); }
+
+/* ---- retraction ----------------------------------------------------------- */
+
+.entry--retraction .entry__lede { color: var(--ink); }
+
+.struck {
+  text-decoration: line-through;
+  text-decoration-color: var(--bad);
+  text-decoration-thickness: 1px;
+  color: var(--ink-soft);
+}
+
+/* ---- pipeline diagram ----------------------------------------------------- */
+
+/* Capped at its authored scale. Left at width:100% the 420-unit viewBox scales its 13px
+   labels up to h2 size, which makes a subordinate schematic the largest thing on the page. */
+.diagram { margin: 2rem 0; max-width: 26rem; }
+.diagram svg { display: block; width: 100%; height: auto; }
+.diagram .d-box { fill: none; stroke: var(--rule); }
+.diagram .d-label { fill: var(--ink); font-size: 13px; font-family: var(--sans); }
+.diagram .d-sub { fill: var(--ink-soft); font-size: 11px; font-family: var(--mono); }
+.diagram .d-line { stroke: var(--ink-faint); stroke-width: 1; fill: none; }
+.diagram .d-guard { stroke: var(--bad); }
+.diagram .d-guard-label { fill: var(--bad); }
+
+/* ---- close ---------------------------------------------------------------- */
+
+.close { padding: clamp(2.5rem, 6vw, 4rem) 0 clamp(3rem, 7vw, 5rem); }
+
+.close h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+
+pre {
+  overflow-x: auto;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0.95rem 1.05rem;
+  margin: 1.25rem 0;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.colophon {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 48rem) {
+  .colophon { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 3rem; }
+}
+
+.colophon h3 { font-size: 0.8125rem; color: var(--ink-soft); letter-spacing: 0.04em; margin-bottom: 0.45rem; }
+.colophon p { max-width: 46ch; }
+.colophon blockquote { margin: 0; padding-left: 0.85rem; border-left: 1px solid var(--rule); }
+
+/* ---- the one authored moment ---------------------------------------------- */
+/* The ruled margin draws downward with the scroll, the way a log fills as the work
+   proceeds. It starts fully drawn, so nothing depends on it, and it is the page's
+   only motion. */
+
+@media (min-width: 62rem) and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .entry::before {
+      animation: draw-rule linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 55%;
+    }
+    @keyframes draw-rule {
+      from { transform: scaleY(0); }
+      to { transform: scaleY(1); }
+    }
+  }
+}
