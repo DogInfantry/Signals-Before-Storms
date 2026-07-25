@@ -170,11 +170,13 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   silences warnings, so the warning alone would be invisible). Scores 8 books, prints the
   label tables, BOTH gross and net scorecards, and the deflation table; writes 15 figures to
   `results/`. matplotlib Agg, no display needed.
-- `notebooks/driver.ipynb`: 56 cells, India-primary (`MARKET = "india"` in the config cell),
-  executes clean with 14 embedded figures (STALE: pre-style, see Next Steps) and a US robustness section at the end. Threads
-  `rf` into every `summary` call. Regenerate: `uv run papermill notebooks/driver.ipynb
-  notebooks/driver.ipynb --kernel python3`. Generator script lives in the session scratchpad, not
-  the repo; edit the notebook in place or regenerate from that script.
+- `notebooks/driver.ipynb`: 58 cells, India-primary (`MARKET = "india"` in the config cell),
+  executes clean with 0 errors and 15 embedded figures, all post-`style.py`, and a US robustness
+  section at the end. Threads `rf` into every `summary` call. The 15th is the `story_panel`
+  composite in section 7, the same hero the README leads with; the paired-bootstrap cell collects
+  `paired_vs[bench][name] = (d, lo, hi)` so the composite can be built. Regenerate:
+  `uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3` (~5 min).
+  Generator script is NOT in the repo; durable copy is the memory-dir `make_nb.py` (see Gotchas).
 - `README.md`: leads with the split result (volatility states confirmed on both universes; India
   wins maxDD/Calmar, US loses outright), both scorecards gross and net with sortino and calmar,
   why-it-loses, the failed rescues, the figure inventory, data quality, deflation rationale,
@@ -311,10 +313,11 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight, but ONE artifact is knowingly stale: `notebooks/driver.ipynb`.** See Next
-step 1. Everything else is committed, pushed, tree clean, 46 tests green, ruff clean.
+**Nothing in flight. No stale artifacts.** Everything is committed, pushed, tree clean, 46 tests
+green, ruff clean. The notebook was re-rendered against the designed figures on 2026-07-25, which
+was the last thing outstanding.
 
-Five commits landed 2026-07-25, all pushed:
+Six commits landed 2026-07-25, all pushed:
 - `ffd1de5` spec-adherence: `cash_ret` feature fix, real India 60/40 (cash leg), gross+net
   scorecards, India-primary notebook, 7 new figures.
 - `f4938ac` Phase 10 effective sample size: `label_episodes`, `episode_profile`, `episode_bars`,
@@ -325,21 +328,19 @@ Five commits landed 2026-07-25, all pushed:
 - `5bfb6b6` figure design pass: new `style.py` with a validated palette, redesigned
   `label_profile_bars` (draws the expected slope beside the measured one), new `story_panel` and
   `paired_forest`, README leads with the composite.
+- `1b24a43` driver notebook re-rendered against the designed figures: generator gained the
+  `story_panel` import, `paired_vs` collection and a section-7 composite cell; 58 cells, 0 errors,
+  15 embedded figures. No result changed, only images.
 
 ## Next steps
-1. **DO THIS FIRST: regenerate `notebooks/driver.ipynb`.** It is the ONLY stale artifact. It is 56
-   cells with 14 embedded figures that were rendered BEFORE the `style.py` design pass, so the
-   committed notebook still shows the old raw-matplotlib charts (and the old amber that fails
-   contrast) while the README shows the new designed ones. Nothing is wrong with the numbers; only
-   the images and the missing `story_panel` section are out of date. Two commands:
+1. **DONE 2026-07-25 (`1b24a43`): the notebook is regenerated.** Kept here as the regeneration
+   recipe, not as an open task. Two commands, the first only if the generator changed:
    ```
    uv run python "C:/Users/Anklesh/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py"
    uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
    ```
-   Then confirm 0 errors and that the embedded figure count went 14 -> 15, and commit.
+   Verify 0 errors and 15 embedded figures by parsing the ipynb JSON, not by eye.
    **The generator is NOT in the repo by design; the durable copy is the memory-dir path above.**
-   Optionally add a `story_panel` cell to it first (see `notebooks/real_run.py` for the call, which
-   needs `paired_vs["60_40"]` and a `{book: max_drawdown}` dict).
 2. **GitHub repo topics are still empty**, which is the largest remaining discoverability gap.
    Outward-facing, so it needs an explicit go-ahead:
    ```
