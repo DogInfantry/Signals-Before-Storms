@@ -314,11 +314,65 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight. No stale artifacts.** Everything is committed, pushed, tree clean, 46 tests
-green, ruff clean. The notebook was re-rendered against the designed figures on 2026-07-25, which
-was the last thing outstanding.
+**A four-phase visual-integrity pass. Phase 1 is DONE and committed; Phases 2-4 have NOT started.**
 
-Six commits landed 2026-07-25, all pushed:
+Working in a git WORKTREE: `.claude/worktrees/sleepy-villani-42671c`, branch
+`claude/sleepy-villani-42671c`, **1 commit ahead of `main` and NOT pushed**. Tree clean.
+The approved plan is on disk at
+`C:\Users\Anklesh\.claude\plans\1-fix-2-recursive-gadget.md` and is the authority for Phases 2-4.
+
+**Phase 1 DONE (`b022350`)**: corrected claims the repo's own tables contradict. The US section
+said the strategy "loses outright on every metric" while its own table showed two HMM books with
+SHALLOWER drawdown than 60/40 (-27.4% and -27.3% against -27.6%). The TL;DR and headline said the
+strategy "does not beat 60/40 or equal weight on Sharpe" while India shows 0.824 against 0.815 and
+0.604. Both restated as NON-SEPARATION under the paired test, which is the defensible claim. Same
+overstatement fixed in the README FAQ, the README Disclaimer and `docs/index.html`'s disclaimer.
+Figure counts corrected everywhere. No number touched.
+
+**Phases 2-4 NOT STARTED.** Trigger: the user viewed the Vercel landing page and rejected the data
+visualisation. Investigation found it is not only taste, it is a claim the artifacts disprove:
+
+- **THE VISUAL CLAIM IS FALSE AS SHIPPED.** `style.py`'s own docstring says green/amber/red
+  "collapses under red-green colour blindness". Three figures then encode SIGN by exactly green vs
+  red: `plots.py:390` (`episode_bars`, `[BAD if v<0 else GOOD]`), `plots.py:348` (`sharpe_forest`,
+  `["#c62828" if x<=0 else "#2e7d32"]`), `plots.py:546` (`story_panel` drawdown panel). README and
+  the site both advertise "the palette was validated rather than chosen by eye". Fix by moving the
+  sign pair to `SERIES_A`/`SERIES_B`, already documented as protan-separation 19.9 against a floor
+  of 8. The zero baseline already carries sign, so hue is redundant reinforcement, not the sole
+  channel.
+- **"One module owns colour" is FALSE in the code.** `plots.py` imports `GOOD`/`BAD`/`NEUTRAL` then
+  hardcodes near-duplicates at ~13 sites (`#37474f` at 148,151,176,202,323,342,484; `#c62828` at
+  187,203,208,488; `#2e7d32` at 348). Note `#c62828` is NOT `BAD` (`#b3261e`): two reds circulate.
+- **The validator is claimed but ABSENT.** `style.py:5` says every palette "was run through a
+  contrast and colour-vision-deficiency validator". That script is not in the repo. Add
+  `tools/validate_palette.py` + `tests/test_style.py` so the boast becomes a tested fact, matching
+  how leak-proofing is already handled. **EXPECT `GOOD`/`BAD` to FAIL that test**, since that pair
+  is the thing being flagged; the user was asked whether to keep a green/red pair anywhere and the
+  session ended before an answer.
+- **`episode_bars` cannot be counted.** Its whole message is "14 episodes, not 261 days" and its
+  subtitle asserts 14, but `plots.py:400-406` blanks the tick label of any bar under 4% of total
+  width and width-proportional bars render short episodes as 1px slivers. A reader can distinguish
+  about 10. Enforce a minimum bar width, number the axis 1..n, move dates to the subtitle.
+- **Code identifiers leak into public figures**: `hmm_drawdown_feat`, `vol_rule_ablation`,
+  `hmm_vol_targeted`, `60_40`, `equal_weight`, `jump_regime`. The site tables already use proper
+  names. Add one `DISPLAY_NAMES` dict in `style.py`, reusing the exact strings from the
+  `docs/index.html` scorecard tables.
+- **`paired_forest` has no standalone save**, only as a `story_panel` sub-panel. Phase 4 needs it
+  standalone for the mobile path. Adding it makes 16 per universe, 32 in `results/`.
+- **Page: the user named three sections useless** and they are to be CUT: the numbered 01-08 index
+  nav, the "Run it yourself" block, and the four-column colophon band (compress to one line plus
+  the citation blockquote, which is a licence condition). Also drop the bare raw-PNG links, and use
+  `<picture>` so the 1963px composite swaps to stacked standalone plates on narrow viewports.
+- **The four failed rescues STAY.** The user chose "keep, reframe". Lead each with its
+  pre-registered criterion and replace the red `failed` stamp with a neutral `pre-registered`
+  marker carrying the outcome as text, so a skimmer sees discipline, not defeat. Entry 04's
+  retraction is untouched.
+
+**HARD CONSTRAINT on Phases 2-4: no published number may change.** Every edit is cosmetic or
+colour-routing. After regenerating, diff the printed scorecards against the README tables; if a
+number moves, something was changed that should not have been.
+
+Eight commits landed 2026-07-25:
 - `ffd1de5` spec-adherence: `cash_ret` feature fix, real India 60/40 (cash leg), gross+net
   scorecards, India-primary notebook, 7 new figures.
 - `f4938ac` Phase 10 effective sample size: `label_episodes`, `episode_profile`, `episode_bars`,
@@ -332,10 +386,28 @@ Six commits landed 2026-07-25, all pushed:
 - `1b24a43` driver notebook re-rendered against the designed figures: generator gained the
   `story_panel` import, `paired_vs` collection and a section-7 composite cell; 58 cells, 0 errors,
   15 embedded figures. No result changed, only images.
+- `e47fb0e` retire the notebook-is-stale note.
+- `60e5edf` the Vercel landing page: `docs/index.html` + `docs/style.css` + `docs/favicon.svg` +
+  `vercel.json`. Preset `Other`, Root Directory `docs`, no build step, no JS libraries, inline SVG
+  for the pipeline diagram. `PRODUCT.md` at the repo root is its brief and is worth reading before
+  touching the page: it names the audience (a recruiter with under a minute, often on a phone),
+  fixes the constraints, and lists absences that must never be filled in by invention.
+- `b022350` **UNPUSHED, this branch only.** Phase 1 above.
 
 ## Next steps
+0. **THE ACTIVE WORK: Phases 2-4 of the visual-integrity pass.** Read
+   `C:\Users\Anklesh\.claude\plans\1-fix-2-recursive-gadget.md` first; it is approved and detailed.
+   Phase 2 makes the palette claim true (`style.py`, `plots.py`, new validator + test). Phase 3
+   fixes the figures (countable `episode_bars`, display names, layout waste, standalone
+   `paired_forest`). Phase 4 rebuilds `docs/index.html` (cut three sections, reframe the rescues,
+   `<picture>` for mobile). Then regenerate BOTH universes, copy the India figures into `docs/img/`,
+   and reconcile the figure counts in README and here to what is measured on disk.
+   **One open decision blocks nothing but should be settled early:** the Phase 2c palette test is
+   expected to fail `GOOD`/`BAD`. Either replace those constants or scope the test to exclude a
+   deliberately-kept green/red pair. Ask before choosing.
 1. **DONE 2026-07-25 (`1b24a43`): the notebook is regenerated.** Kept here as the regeneration
-   recipe, not as an open task. Two commands, the first only if the generator changed:
+   recipe, not as an open task. **NOTE: Phases 2-4 change every figure, so the notebook must be
+   re-rendered again once they land.** Two commands, the first only if the generator changed:
    ```
    uv run python "C:/Users/Anklesh/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py"
    uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
@@ -389,6 +461,21 @@ uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 ```
 
 ## Gotchas
+- **YOU MAY BE IN A WORKTREE, NOT THE MAIN CHECKOUT.** As of 2026-07-25 the live work is in
+  `.claude/worktrees/sleepy-villani-42671c` on branch `claude/sleepy-villani-42671c`. Edits made
+  there do NOT appear in `C:\Users\Anklesh\Documents\Claude_Code\Summer_Quant\README.md` until the
+  branch is merged. Run `git branch --show-current` before assuming which copy you are editing.
+- **A FIGURE IS A CLAIM. Look at the PNG before believing what the code says about it.** Both
+  defects found on 2026-07-25 were invisible in the source and obvious in the image: `episode_bars`
+  asserts "14 episodes" in its own subtitle while rendering about 10 countable bars, and three
+  figures encode sign green-vs-red in a project whose style module documents that exact pair as
+  colour-blind-hostile. Reading `plots.py` would never have caught either. The Read tool renders
+  PNGs; use it.
+- **The same defect class keeps recurring: a confident claim the repo's own artifacts disprove.**
+  Three instances so far. The README said "loses on every metric" above a table showing otherwise.
+  The README said "does not beat on Sharpe" above a table showing 0.824 against 0.815. `style.py`
+  advertises a validated palette while shipping the pair it warns about. When writing any
+  superlative here, open the table or the image it summarises.
 - **`notebooks/driver.ipynb` is GENERATED, and the generator is not in the repo.** Durable copy:
   `~/.claude/projects/C--Users-Anklesh-Documents-Claude-Code-Summer-Quant/memory/make_nb.py`. It was
   originally written to a SESSION-scoped scratchpad, which a new session cannot reach, so it was
