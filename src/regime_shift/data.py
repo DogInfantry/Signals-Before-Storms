@@ -62,8 +62,7 @@ def load_macro(series: list[str], start: str, end: str, use_cache: bool = True) 
             s = pd.read_pickle(cache)
         else:
             url = (
-                "https://fred.stlouisfed.org/graph/fredgraph.csv"
-                f"?id={sid}&cosd={start}&coed={end}"
+                f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={start}&coed={end}"
             )
             resp = requests.get(url, timeout=60, headers={"User-Agent": "Mozilla/5.0"})
             resp.raise_for_status()
@@ -78,6 +77,31 @@ def load_macro(series: list[str], start: str, end: str, use_cache: bool = True) 
             s.to_pickle(cache)
         frames.append(s)
     return pd.concat(frames, axis=1)
+
+
+def load_credit_proxies(tickers: dict, start: str, end: str) -> pd.DataFrame:
+    """Credit-spread and yield proxies from Yahoo, standing in for the blocked FRED series.
+
+    FRED is the right source and load_macro is the right code, but fred.stlouisfed.org does not
+    answer from this network, so the macro leg of the brief would otherwise stay unmet. Yahoo
+    does answer, and a credit spread is expressible in prices: log(credit / duration) is the
+    excess of a corporate bond fund over a Treasury fund of similar duration, which widens
+    exactly when BAA10Y widens.
+
+    Returns credit_ig_spread and credit_hy_spread (both NEGATED, so up means a wider spread and
+    more stress, reading the same direction as BAA10Y) plus y10, the 10y yield level. Diagnostic
+    only: none of this reaches build_features, because a macro column there becomes a state
+    variable and would move every published number.
+    """
+    px = load_prices(tickers, start, end)
+    out = pd.DataFrame(index=px.index)
+    if {"credit_ig", "duration"} <= set(px.columns):
+        out["credit_ig_spread"] = -np.log(px["credit_ig"] / px["duration"])
+    if {"credit_hy", "duration"} <= set(px.columns):
+        out["credit_hy_spread"] = -np.log(px["credit_hy"] / px["duration"])
+    if "y10" in px.columns:
+        out["y10"] = px["y10"]
+    return out.dropna(how="all")
 
 
 def drop_return_outliers(returns: pd.DataFrame, max_abs: float) -> pd.DataFrame:

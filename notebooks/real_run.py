@@ -26,7 +26,7 @@ from sklearn.preprocessing import StandardScaler
 from regime_shift.backtest import asset_cols, run_backtest, sensitivity_sweep
 from regime_shift.benchmarks import equal_weight, sixty_forty, sixty_forty_target, vol_rule_regimes
 from regime_shift.config import load_config
-from regime_shift.data import build_master
+from regime_shift.data import build_master, load_credit_proxies, load_macro
 from regime_shift.features import build_features
 from regime_shift.metrics import (
     bootstrap_ci,
@@ -99,22 +99,39 @@ def save(axes, name: str) -> None:
 
 
 cfg = load_config()
-# Macro is requested explicitly. Where FRED is reachable these become real state variables;
-# where it is blocked build_master warns and continues, and the run is macro-free. Passing the
-# list is what makes the claim checkable either way.
-master = build_master(
-    cfg.universes[market], cfg.dates["start"], cfg.dates["end"], cfg.macro_fred_series
-)
+# The MODEL master is deliberately macro-free. build_features promotes any column that is not an
+# asset return and not vix into a state variable, so passing macro here would silently widen the
+# feature matrix and move every published number the moment FRED became reachable. Macro is
+# loaded separately below and used only as a diagnostic, which keeps the trial count at 7.
+master = build_master(cfg.universes[market], cfg.dates["start"], cfg.dates["end"])
 feats = build_features(master, cfg)
 print(f"[{market}] master={master.shape} cols={list(master.columns)}")
 print(f"[{market}] features={feats.shape} cols={list(feats.columns)}")
 
-# build_master warns and continues when FRED is unreachable, but this module silences warnings,
-# so say it out loud instead. A reader has to know whether the published numbers saw macro.
-landed = [s for s in cfg.macro_fred_series if s in master.columns]
+# Macro, tried in preference order and reported honestly whichever leg answers. FRED is the
+# source the brief names, so it is asked first; it has been unreachable from this network since
+# 2026-07-24 and still times out, so the Yahoo credit proxies are the fallback that actually
+# lands. Both are lagged one day and BOTH are diagnostic: no book trades on either, which is why
+# a change of network cannot move a published number.
+macro, macro_source = None, "NONE"
+try:
+    macro = load_macro(cfg.macro_fred_series, cfg.dates["start"], cfg.dates["end"])
+    macro_source = f"FRED {cfg.macro_fred_series}"
+except Exception as exc:  # noqa: BLE001
+    print(f"[{market}] FRED unreachable ({type(exc).__name__}), falling back to Yahoo proxies")
+    try:
+        macro = load_credit_proxies(cfg.macro_yahoo_proxies, cfg.dates["start"], cfg.dates["end"])
+        macro_source = f"Yahoo proxies {list(cfg.macro_yahoo_proxies.values())}"
+    except Exception as exc2:  # noqa: BLE001
+        print(f"[{market}] Yahoo proxies failed too: {type(exc2).__name__}: {exc2}")
+
+if macro is not None:
+    grid = pd.bdate_range(master.index.min(), master.index.max())
+    macro = macro.reindex(grid).ffill().shift(1).reindex(master.index)
+    macro = macro.loc[:, macro.notna().any()]
 print(
-    f"[{market}] macro requested={cfg.macro_fred_series} landed={landed or 'NONE'}"
-    + ("" if landed else "  <- FRED unreachable, these results are macro-free")
+    f"[{market}] macro source={macro_source} cols="
+    f"{list(macro.columns) if macro is not None else 'NONE'}  (diagnostic only, no book uses it)"
 )
 
 regimes = run_walk_forward(feats, cfg)
@@ -304,6 +321,38 @@ save(ax, "regime_weights")
 ax = rolling_sharpe(books, rf=rf)
 ax.set_title(f"{market.upper()} rolling 252d Sharpe: is any ranking stable through time?")
 save(ax, "rolling_sharpe")
+
+# The credit spread against the same regime path, and the reason macro is worth pulling at all.
+# The fitted states order volatility perfectly and direction not at all, because realized vol and
+# VIX are both symmetric in sign: they rise in a crash and rise again in the rebound. A credit
+# spread is not symmetric. It widens in a credit event and stays wide, and it barely moves in a
+# rates selloff, so it separates two episodes that look identical to a volatility feature. That
+# is what a directional state variable would have to be built from. Diagnostic, not a feature.
+_have = set(macro.columns) if macro is not None else set()
+spread_col = next(
+    (c for c in ("credit_hy_spread", "BAA10Y", "credit_ig_spread") if c in _have), None
+)
+if spread_col:
+    spread = macro[spread_col].loc[oos].dropna()
+    ax = regime_overlay(spread, regimes.loc[spread.index], log=False)
+    ax.set_ylabel(f"{spread_col} (up = wider = more stress)")
+    ax.set_title(f"{market.upper()} credit spread under the same walk-forward regimes")
+    save(ax, "macro_spread")
+
+    # The numeric form of the same claim, so the figure is not carrying it alone.
+    print(f"\n=== {spread_col}: does a SIGNED variable separate what volatility cannot? ===")
+    EPISODES = (
+        ("covid_crash", "2020-02-15", "2020-03-23"),
+        ("rates_2022", "2022-01-01", "2022-10-15"),
+    )
+    for tag, lo_d, hi_d in EPISODES:
+        seg = macro[spread_col].loc[lo_d:hi_d].dropna()
+        vol = feats["vol_21"].loc[lo_d:hi_d].dropna()
+        if len(seg) and len(vol):
+            print(
+                f"  {tag:12s} spread {seg.iloc[0]:+.3f} -> {seg.iloc[-1]:+.3f} "
+                f"(move {seg.iloc[-1] - seg.iloc[0]:+.3f})   vol_21 peak {vol.max():.3f}"
+            )
 
 axes = sensitivity_panel(sweep_table)
 axes[0].figure.suptitle(f"{market.upper()} parameter sensitivity (flat = conclusion is robust)")

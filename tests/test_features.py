@@ -69,3 +69,22 @@ def test_feature_columns_and_no_nan():
     assert not feats.isna().any().any(), "dropna should leave a fully dense matrix"
     # longest window is the binding constraint; rolling(w) leaves w-1 leading NaNs
     assert len(feats) == 400 - (max(cfg.features["momentum_windows"]) - 1)
+
+
+def test_macro_widens_the_matrix_so_the_model_master_must_exclude_it():
+    """The published feature matrix is 9 columns, and one macro column would make it 10.
+
+    Every number in the README was fitted on 9 features per universe. Macro passthrough is a
+    real capability, but it is also the mechanism that once gave India a 10th feature via
+    cash_ret. FRED being unreachable is what kept that from happening again while the entry
+    points still requested macro; now that FRED answers, only the entry points building a
+    macro-free model master keep the results reproducible. This pins both halves.
+    """
+    cfg = load_config()
+    master = _synthetic_master()
+
+    model_feats = build_features(master.drop(columns="NFCI"), cfg)
+    assert len(model_feats.columns) == 9, list(model_feats.columns)
+
+    with_macro = build_features(master, cfg)
+    assert list(with_macro.columns) == [*model_feats.columns, "NFCI"]

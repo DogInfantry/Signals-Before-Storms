@@ -27,6 +27,7 @@ class Config(BaseModel):
     dates: dict
     features: dict
     macro_fred_series: list[str]
+    macro_yahoo_proxies: dict[str, str] = {}
     walkforward: WalkForward
     hmm: HMMCfg
     costs_bps: float
