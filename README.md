@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-67_passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-78_passing-brightgreen.svg)](tests/)
 [![Ruff](https://img.shields.io/badge/lint-ruff_clean-brightgreen.svg)](https://github.com/astral-sh/ruff)
 [![Result](https://img.shields.io/badge/result-rigorous_negative-orange.svg)](#the-finding)
 [![Live sites](https://img.shields.io/badge/live-3_deployments-informational.svg)](#three-live-deployments)
@@ -496,7 +496,7 @@ see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) f
 git clone https://github.com/DogInfantry/Signals-Before-Storms.git
 cd Signals-Before-Storms
 uv sync --extra jump
-uv run pytest -q                            # 67 tests
+uv run pytest -q                            # 78 tests
 uv run python notebooks/real_run.py india   # primary universe, 17 figures
 uv run python notebooks/real_run.py us      # robustness universe
 uv run python tools/export_site_data.py all # refresh the data the site draws from
@@ -540,7 +540,7 @@ src/regime_shift/
   plots.py        16 figure helpers
 config/config.yaml  every knob: universe, dates, windows, costs, seed
 notebooks/          top-to-bottom driver script and notebook
-tests/              67 tests, leak-proofing, metric and palette checks
+tests/              78 tests, leak-proofing, metric and palette checks
 tools/              palette validator, site data exporter, monitor data exporter
 docs/               static site: interactive panel, research log, figures, exported JSON
 monitor/            Regime Monitor: vanilla dashboard reading data/monitor.json, 11 markets
