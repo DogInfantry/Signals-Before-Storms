@@ -205,9 +205,9 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   rather than trusting it.
 - `tools/regime_alert.py`: `changes(old, new)` + `render(changed, generated)`. Stdlib only, prints
   Markdown, NO network and no delivery path at all. Detection language only.
-- `tools/check_monitor_payload.py`: `problems(published, fresh) -> list[str]`, empty means safe to
+- `tools/check_monitor_payload.py`: `problems(published, fresh)` + `_latest(payload)`, empty list means safe to
   publish. Exit 1 blocks the scheduled commit.
-- `tests/` (78 total plus 4 skipped, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+- `tests/` (80 total plus 4 skipped, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
   `test_style` (palette floors), `test_features` 3 (the fixture carries ALL FOUR asset roles,
   asserts no `*_ret` reaches the feature matrix, and pins the 9-column model matrix against macro
   widening it), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
@@ -243,7 +243,7 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 
 ## Current state
 - **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
-- 78 tests green (4 skipped), ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- 80 tests green (4 skipped), ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
 - Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is still blocked from Python
   on this network** (re-probed 2026-07-26: ReadTimeout at 25s from `requests`, even though `curl`
@@ -409,9 +409,30 @@ Landed 2026-07-28, all pushed, all three sites live:
   same `monitor.json` so the two sites cannot disagree.
 - `74c8bf0` README folds both in, with live URLs.
 
-Landed 2026-07-29 (scheduled refresh; see the section below):
-- `.github/workflows/monitor.yml`, `tools/regime_alert.py`, `tools/check_monitor_payload.py`,
-  `tests/test_regime_alert.py`.
+Landed 2026-07-29, all pushed, tree clean, `main == origin/main`:
+- `3f8e3bb` the scheduled refresh: `.github/workflows/monitor.yml`, `tools/regime_alert.py`,
+  `tools/check_monitor_payload.py`, `tests/test_regime_alert.py`. See the section below.
+- `d2c60f0` the README pointed at an SSO-walled per-deployment Storm Ledger URL in four places.
+- `00f0324` repo topics were ALREADY set; the "still empty" note here was false.
+- `0345842` **Discord deleted, not disabled**, on the user's explicit instruction.
+- `161b684` the landing page linked NEITHER sibling site (the monitor and the ledger both linked
+  back to it, so the front door was the only dead end); cron weekly -> daily; data refreshed.
+- `ccd9e36` FOUR README figures were broken: the README asked for `.png` and only the `.svg` had
+  been committed, so `docs/img/` was missing `india_{label_profile,regime_weights,episode_bars,
+  sensitivity}.png`. Copied from gitignored `results/`. Tests badge said 67, actual 78.
+- `00b137f` the bot's own first commit (see the run note below).
+- `0e1038b` the backwards-data guard + the monitor's as-of footnote.
+- `04ba4bf` that footnote's CSS had to become `.hero p.asof`: a bare `.asof` scores (0,1,0)
+  against `.hero p` at (0,1,1), so BOTH its font-size and colour were overridden and the note
+  shipped rendering at body size. Caught by measuring the deployed page, not by reading the CSS.
+
+**LINK AND FIGURE AUDIT, 2026-07-29.** Every README link was machine-checked: 7 anchors resolve
+to real headings, 9 relative paths exist, 14 external URLs return 200. The only breakage was the
+four figures above. Re-run it rather than eyeballing:
+```
+for u in $(grep -oE 'https?://[^)"< ]+' README.md | sed 's/[.,]$//' | sort -u); do printf "%-70s " "$u"; curl -s -o /dev/null -w "%{http_code}\n" --max-time 20 -L "$u"; done
+for p in $(grep -oE 'docs/img/[a-z_]+\.png' README.md | sort -u); do [ -f "$p" ] || echo "MISSING $p"; done
+```
 
 Landed 2026-07-26:
 - `cef41cb` macro leg: `load_credit_proxies`, macro-free model master, the widening-guard test.
@@ -499,10 +520,27 @@ trims further, trim `story.html` last.
 
 ## THE SCHEDULED REFRESH (2026-07-29), and the improvement plan that was triaged to build it
 
-`.github/workflows/monitor.yml` re-runs the FROZEN monitor pipeline weekly (Saturday 06:00 UTC,
-plus `workflow_dispatch`) and pushes the two payloads. **It is the only thing in this repo that
-writes to `main` unattended**, and a push to `main` rebuilds ALL THREE Vercel projects, which is
-the intended publication mechanism rather than a regression.
+`.github/workflows/monitor.yml` re-runs the FROZEN monitor pipeline **daily, 06:00 UTC Tuesday to
+Saturday** (`cron: "0 6 * * 2-6"`, plus `workflow_dispatch`) and pushes the two payloads. **It is
+the only thing in this repo that writes to `main` unattended**, and a push to `main` rebuilds ALL
+THREE Vercel projects, which is the intended publication mechanism rather than a regression.
+Daily rather than weekly because the monitor's own `<h1>` says "where each market sits right now",
+and weekly made that false for up to seven days. 06:00 UTC is after the previous weekday's US
+close (20:00 UTC) and after India's session for that date; Monday is skipped because Sunday has no
+session to report. A quiet day exports identical bytes, commits nothing and deploys nothing.
+
+**PROVEN ON A RUNNER, and the first execution shipped a real defect.** Run
+[30394100175](https://github.com/DogInfantry/Signals-Before-Storms/actions/runs/30394100175)
+(2026-07-28, manual dispatch) went green in 2m03s through all eight steps, so **yfinance DOES
+work from a GitHub-hosted datacenter IP** (curl_cffi, no proxy, no auth), which was the one
+untested risk. It committed `00b137f` touching only the two payloads, docs/data untouched.
+**But it published data a DAY OLDER than what it replaced**: `161b684` reached `as_of 2026-07-28`
+on the US names and the run replaced it with a payload reaching only `2026-07-27`, because a
+manual dispatch at 19:56 UTC lands four minutes before the 20:00 UTC US close. Every market was
+present and labelled, so nothing objected. `check_monitor_payload.problems` now refuses that
+(see below) and `tests/test_regime_alert.py` pins it. The scheduled 06:00 UTC slot never had this
+problem; the manual dispatch hour did. **If you dispatch by hand, do it after 20:00 UTC or expect
+the guard to refuse.**
 
 It is built to FAIL CLOSED, and every guard exists because the corresponding failure is silent:
 - `set -o pipefail` in the export step. Actions runs `bash -e` WITHOUT pipefail and `tee` always
@@ -514,9 +552,11 @@ It is built to FAIL CLOSED, and every guard exists because the corresponding fai
 - Asserts `git diff --quiet -- docs/data`. That payload is pinned to `cfg.dates`; this pipeline
   runs to today and must never move it, or the site and the README stop agreeing.
 - `cmp` on the monitor payload against the ledger mirror, so two live sites cannot show two truths.
-- `tools/check_monitor_payload.py`: refuses a payload with FEWER markets than the published one or
-  with any market missing a current label. A vendor outage does not raise; the market just vanishes
-  from the page.
+- `tools/check_monitor_payload.py`: refuses a payload with FEWER markets than the published one,
+  with any market missing a current label, or **whose newest `as_of` is EARLIER than the published
+  one**. A vendor outage does not raise; the market just vanishes from the page. The backwards
+  check was added after the defect above actually shipped, and equal dates are allowed on purpose
+  (a quiet day re-exports the same sessions and must still publish).
 - `tools/regime_alert.py` diffs the previous committed payload against the fresh one and prints
   Markdown into `$GITHUB_STEP_SUMMARY`, so the report renders on the run page and rides GitHub's
   own notifications. **NO third-party service and NO secret**, by explicit user decision on
@@ -608,14 +648,14 @@ Do not re-propose these; they are not oversights.**
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 78 tests, 4 skipped
+uv run pytest -q              # 80 tests, 4 skipped
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
 uv run python notebooks/real_run.py india          # PRIMARY: full run + 16 figures
 uv run python notebooks/real_run.py us             # robustness; must stay bit-identical
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 uv run python tools/export_site_data.py all        # docs/data/*.json, after anything that moves a number
-uv run python tools/export_monitor_data.py         # monitor/data + ledger mirror; the weekly Action runs this
+uv run python tools/export_monitor_data.py         # monitor/data + ledger mirror; the daily Action runs this
 uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # prints the diff, no network
 ```
 
