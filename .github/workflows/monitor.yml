@@ -91,12 +91,12 @@ jobs:
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Alert on a regime change
-        # Skipped cleanly when the secret is absent, so the refresh never depends on the webhook.
+      - name: Report the regime changes
+        # Into the run summary, so the report rides GitHub's own notifications. No third-party
+        # service and no secret: nothing to configure, nothing to leak, nothing to keep alive.
         if: steps.publish.outputs.changed == 'true'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          set -o pipefail
           uv run python tools/regime_alert.py \
             "${RUNNER_TEMP}/prev-monitor.json" monitor/data/monitor.json \
-            ${DISCORD_WEBHOOK_URL:+--webhook "$DISCORD_WEBHOOK_URL"}
+            | tee -a "$GITHUB_STEP_SUMMARY"

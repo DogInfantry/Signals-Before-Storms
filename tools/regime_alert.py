@@ -1,19 +1,20 @@
 """Diff two monitor payloads and report the markets whose regime label changed.
 
-    uv run python tools/regime_alert.py OLD.json NEW.json [--webhook URL]
+    uv run python tools/regime_alert.py OLD.json NEW.json
+
+Prints Markdown to stdout and exits 0 whether or not anything moved. The scheduled workflow pipes
+it into `$GITHUB_STEP_SUMMARY`, so the report renders on the run page and GitHub's own
+notifications carry it. **No third-party service and no secret**: there is nothing to configure,
+nothing to leak and nothing to keep alive.
 
 Detection only, by construction. This reports a STATE and its probability and never a weight,
 a target or an allocation, because the stance map is the part of this research that failed and
-`tools/export_monitor_data.py` deliberately ships the part that worked. A regime alert that
+`tools/export_monitor_data.py` deliberately ships the part that worked. A regime report that
 suggested a trade would be shipping the failure.
 
-Two properties worth keeping:
-
-  1. No network unless `--webhook` is passed, so the diff is testable offline and the workflow
-     still refreshes the site when the secret is absent.
-  2. A market missing from the OLD payload is reported as newly tracked rather than silently
-     dropped. Silence would be indistinguishable from "nothing changed", which is exactly the
-     failure mode an alert exists to prevent.
+One property worth keeping: a market missing from the OLD payload is reported as newly tracked
+rather than silently dropped. Silence would be indistinguishable from "nothing changed", which is
+exactly the failure mode a report like this exists to prevent.
 """
 
 from __future__ import annotations
@@ -22,11 +23,6 @@ import argparse
 import json
 import pathlib
 import sys
-import urllib.request
-
-# Discord rejects a payload over 2000 characters. Eleven markets cannot reach it, but a future
-# universe could, and a rejected POST would look identical to a quiet week.
-_DISCORD_LIMIT = 2000
 
 
 def _by_ticker(payload: dict) -> dict[str, dict]:
@@ -70,11 +66,11 @@ def changes(old: dict, new: dict) -> list[dict]:
 
 
 def render(changed: list[dict], generated: str | None = None) -> str:
-    """One line per market. Empty string when nothing moved, so the caller can post or not."""
+    """One line per market. Empty string when nothing moved, so the caller can report or not."""
     if not changed:
         return ""
     head = f"Regime change, {generated}" if generated else "Regime change"
-    lines = [f"**{head}**"]
+    lines = [f"**{head}**", ""]
     for c in changed:
         p = c["p_crisis_21"]
         # null means the market is already in Crisis, where "probability of reaching Crisis
@@ -86,39 +82,21 @@ def render(changed: list[dict], generated: str | None = None) -> str:
             lines.append(
                 f"- {c['name']} ({c['ticker']}): {c['from_name']} -> {c['to_name']}, {tail}"
             )
-    lines.append("Detection only. No position is implied.")
-    msg = "\n".join(lines)
-    return msg if len(msg) <= _DISCORD_LIMIT else msg[: _DISCORD_LIMIT - 3] + "..."
-
-
-def post(webhook: str, message: str) -> int:
-    req = urllib.request.Request(
-        webhook,
-        data=json.dumps({"content": message}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - operator-supplied URL
-        return resp.status
+    lines += ["", "Detection only. No position is implied."]
+    return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("old", type=pathlib.Path)
     ap.add_argument("new", type=pathlib.Path)
-    ap.add_argument("--webhook", default="", help="Discord webhook URL. Omit to print only.")
     args = ap.parse_args(argv)
 
     new = json.loads(args.new.read_text(encoding="utf-8"))
     # A missing OLD file is a first run, not an error: every market then reads as newly tracked.
     old = json.loads(args.old.read_text(encoding="utf-8")) if args.old.exists() else {}
 
-    message = render(changes(old, new), new.get("generated"))
-    if not message:
-        print("No regime change.")
-        return 0
-    print(message)
-    if args.webhook:
-        print(f"Webhook responded {post(args.webhook, message)}.")
+    print(render(changes(old, new), new.get("generated")) or "No regime change.")
     return 0
 
 

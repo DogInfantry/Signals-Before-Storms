@@ -1,11 +1,11 @@
 """The scheduled monitor's two guards, as tests: what it says when a market moves, and what it
 refuses to publish.
 
-Synthetic payloads only, and no network: `post` is never called here, so the diff can be trusted
-without a webhook existing. Two of these are load-bearing. An alert that quietly dropped a market
-it had not seen before would be indistinguishable from a quiet week, which is the one failure an
-alert cannot be allowed to have; and the publish guard is the only thing standing between a
-vendor outage and a live page that silently lost a market.
+Synthetic payloads only, and no network at all: the reporter prints Markdown and nothing else, so
+there is no delivery path to stub. Two of these are load-bearing. A report that quietly dropped a
+market it had not seen before would be indistinguishable from a quiet week, which is the one
+failure a report like this cannot be allowed to have; and the publish guard is the only thing
+standing between a vendor outage and a live page that silently lost a market.
 """
 
 from __future__ import annotations

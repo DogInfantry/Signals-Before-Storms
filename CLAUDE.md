@@ -203,8 +203,8 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   two sites cannot drift). Detection only: no optimizer, no backtest, no benchmark, no bootstrap.
   **It must never touch `docs/data/`**, which is pinned to `cfg.dates`; the workflow checks that
   rather than trusting it.
-- `tools/regime_alert.py`: `changes(old, new)` + `render(changed, generated)` + `post(webhook,
-  msg)`. Stdlib only, no network unless `--webhook` is passed. Detection language only.
+- `tools/regime_alert.py`: `changes(old, new)` + `render(changed, generated)`. Stdlib only, prints
+  Markdown, NO network and no delivery path at all. Detection language only.
 - `tools/check_monitor_payload.py`: `problems(published, fresh) -> list[str]`, empty means safe to
   publish. Exit 1 blocks the scheduled commit.
 - `tests/` (78 total plus 4 skipped, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
@@ -517,11 +517,13 @@ It is built to FAIL CLOSED, and every guard exists because the corresponding fai
 - `tools/check_monitor_payload.py`: refuses a payload with FEWER markets than the published one or
   with any market missing a current label. A vendor outage does not raise; the market just vanishes
   from the page.
-- `tools/regime_alert.py` diffs the previous committed payload against the fresh one and POSTs to
-  `secrets.DISCORD_WEBHOOK_URL` on any label change. **The secret is not created yet**; the step
-  is written so an absent secret prints and skips the POST, so the refresh never depends on it.
-  A market absent from the OLD payload is reported as newly tracked rather than dropped, because
-  silence there is indistinguishable from a quiet week.
+- `tools/regime_alert.py` diffs the previous committed payload against the fresh one and prints
+  Markdown into `$GITHUB_STEP_SUMMARY`, so the report renders on the run page and rides GitHub's
+  own notifications. **NO third-party service and NO secret**, by explicit user decision on
+  2026-07-29 ("no discord dawg, cancel anything related to discord"). An earlier draft POSTed to a
+  Discord webhook; that path is deleted, not disabled. Do not reintroduce a notification service
+  without asking. A market absent from the OLD payload is reported as newly tracked rather than
+  dropped, because silence there is indistinguishable from a quiet week.
   **It speaks in STATES and probabilities and never in weights or allocations**, and a test pins
   that wording, because the stance map is the part of this research that FAILED and the monitor
   deliberately ships only the part that worked.
@@ -614,7 +616,7 @@ uv run python notebooks/real_run.py us             # robustness; must stay bit-i
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 uv run python tools/export_site_data.py all        # docs/data/*.json, after anything that moves a number
 uv run python tools/export_monitor_data.py         # monitor/data + ledger mirror; the weekly Action runs this
-uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # dry run, no webhook, no network
+uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # prints the diff, no network
 ```
 
 ## Gotchas
