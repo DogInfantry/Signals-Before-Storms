@@ -5,11 +5,20 @@
 [![Tests](https://img.shields.io/badge/tests-67_passing-brightgreen.svg)](tests/)
 [![Ruff](https://img.shields.io/badge/lint-ruff_clean-brightgreen.svg)](https://github.com/astral-sh/ruff)
 [![Result](https://img.shields.io/badge/result-rigorous_negative-orange.svg)](#the-finding)
+[![Live sites](https://img.shields.io/badge/live-3_deployments-informational.svg)](#three-live-deployments)
 
-**[Explore the results interactively](https://signals-before-storms.vercel.app)**; toggle any of
-eight books, switch gross against net of costs, and switch India against the US to watch the
-ranking change. The [full research log](https://signals-before-storms.vercel.app/story) sits
-behind it.
+### Three live deployments
+
+- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** — the graded backtest
+  itself. Toggle any of eight books, switch gross against net of costs, switch India against the
+  US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
+  sits behind it.
+- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** — the same fixed HMM pipeline run
+  live on eleven markets, detection only. Which volatility regime each market is in right now, how
+  long it has been there, and what that implies for position size.
+- **[The Storm Ledger](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/)** — a
+  broadsheet reading of that same eleven-market result: the same data, written as an argument
+  instead of a dashboard.
 
 **Signals-Before-Storms is an open-source quantitative finance research engine that detects hidden
 market regimes (Bull, Bear, Crisis) with a Hidden Markov Model, then reallocates a portfolio across
@@ -45,6 +54,7 @@ the benchmark's worst loss (bottom right).
 | **Is the backtest leak-proof?** | Yes, and asserted by unit tests: causal features, train-only scaling, per-fold refit, causal decode, 1-day execution lag |
 | **Are the results deflated?** | Yes. Deflated Sharpe at an honest 7-trial count, plus stationary-bootstrap confidence intervals |
 | **Sample size** | 1,814 out-of-sample trading days (India), 1,886 (US), 2016-2023 |
+| **What else is here?** | [Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) (live dashboard, 11 markets) and [The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet) (broadsheet narrative of the same 11-market result) |
 | **Stack** | Python 3.11+, `hmmlearn`, `cvxpy`, `pandas`, `numpy`, `scipy`, `scikit-learn`, `yfinance`, `matplotlib` |
 
 ---
@@ -318,8 +328,9 @@ economically sensible behaviour the model was never told to produce.
 
 ## The Regime Monitor: the same model on eleven markets
 
-A second, separate deployment (`monitor/`, its own Vercel project) that ships the part of this
-research that **worked**. Detection is what held up, so the monitor reports which volatility regime
+**Live at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/).** A second,
+separate deployment (`monitor/`, its own Vercel project) that ships the part of this research that
+**worked**. Detection is what held up, so the monitor reports which volatility regime
 each of eleven markets is in right now, how long it has been there, the transition matrix, the odds
 of entering Crisis within 21 sessions, and what that regime's measured volatility implies for
 position size. Rebuild it with:
@@ -388,6 +399,34 @@ negative settlement, where a log return is undefined.
 
 ---
 
+## The Storm Ledger: the same eleven markets, read as a broadsheet
+
+**Live at [storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/).**
+A third deployment (`ledger/`, Next.js, its own Vercel project) that reads the **same**
+`monitor.json` export the Regime Monitor draws from, but presents it as a broadsheet argument
+rather than a live instrument panel. Where the Monitor answers "where does each market stand right
+now," the Ledger answers "what does the eleven-market result actually mean," for a reader meeting
+the finding for the first time.
+
+The masthead states the headline in one sentence: **volatility orders 11 of 11 markets; return
+orders 2.** From there:
+
+| Section | What it shows |
+|---|---|
+| Twin slopegraphs | Annualized volatility and annualized return by regime state, the same eleven markets, side by side, so the reader performs the comparison instead of being told the conclusion |
+| Crisis-simultaneity narrative | Which markets entered the Crisis state together, and in what order, with margin notes on the sequence |
+| Instrument table | Every market grouped India / Global equity+rates / Commodities, each row showing current regime, sessions in that run, and the implied position size from measured volatility |
+
+It is not a second study. Same JSON, same eleven markets, same 7-trial deflated-Sharpe discipline,
+same detection-only scope: no optimizer, no backtest, no benchmark carried over. Rebuild both the
+Monitor's and the Ledger's data with the one shared exporter:
+
+```
+uv run python tools/export_monitor_data.py
+```
+
+---
+
 ## FAQ
 
 **What is a market regime?**
@@ -427,10 +466,27 @@ No. This is research and educational code, and the headline finding is that the 
 separate from simple benchmarks on risk-adjusted return, and underperforms them outright on the US
 universe. See [Disclaimer](#disclaimer).
 
+**What is the Regime Monitor?**
+A live, separate deployment at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/)
+that runs this project's fixed HMM pipeline on eleven markets in real time, detection only, no
+optimizer or backtest attached. It reports each market's current volatility regime, how long it
+has held that regime, and the position size that regime's measured volatility implies. See
+[The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets).
+
+**What is the Storm Ledger?**
+A broadsheet-style presentation, built in Next.js and live at
+[storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/),
+that reads the same eleven-market data export as the Regime Monitor and turns it into a narrative:
+slopegraphs, a Crisis-simultaneity story, and a grouped instrument table. See
+[The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet).
+
 **What markets and data does it use?**
-India (primary): NIFTY 50 (^NSEI), GOLDBEES.NS, LIQUIDBEES.NS, India VIX (^INDIAVIX). US
-(robustness): SPY, TLT, GLD, ^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from
-FRED where it is reachable and a Yahoo credit-spread proxy where it is not. 2015-2023, daily.
+The graded backtest uses two universes on a fixed 2015-2023 window: India (primary) — NIFTY 50
+(^NSEI), GOLDBEES.NS, LIQUIDBEES.NS, India VIX (^INDIAVIX) — and US (robustness) — SPY, TLT, GLD,
+^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from FRED where it is reachable and
+a Yahoo credit-spread proxy where it is not. The Regime Monitor and Storm Ledger are separate,
+detection-only deployments that extend the same pipeline to eleven markets on a rolling window;
+see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) for that list.
 
 ---
 
@@ -468,7 +524,8 @@ costs, and switch India against the US rather than take a screenshot's word for 
 carries the full research log. `tools/export_site_data.py` writes the JSON it reads, using the same
 functions that print the scorecard, so the page cannot drift from the tables above. Serve it with
 `python -m http.server --directory docs`; opening the file directly will not work, because `fetch`
-is blocked on the `file://` origin.
+is blocked on the `file://` origin. `tools/export_monitor_data.py` is the equivalent exporter for
+the Regime Monitor and The Storm Ledger, writing the one `monitor.json` both sites read.
 
 ```
 src/regime_shift/
@@ -484,8 +541,10 @@ src/regime_shift/
 config/config.yaml  every knob: universe, dates, windows, costs, seed
 notebooks/          top-to-bottom driver script and notebook
 tests/              67 tests, leak-proofing, metric and palette checks
-tools/              palette validator, site data exporter
+tools/              palette validator, site data exporter, monitor data exporter
 docs/               static site: interactive panel, research log, figures, exported JSON
+monitor/            Regime Monitor: vanilla dashboard reading data/monitor.json, 11 markets
+ledger/             The Storm Ledger: Next.js broadsheet, same JSON via public/data/monitor.json
 ```
 
 ## Why the key decisions
@@ -582,4 +641,6 @@ benchmarks on risk-adjusted return, and underperforms them outright on the US un
 **Keywords:** hidden markov model finance · market regime detection · tactical asset allocation ·
 regime switching model python · walk-forward validation · backtesting framework · lookahead bias ·
 deflated sharpe ratio · convex portfolio optimization · cvxpy · hmmlearn · quantitative finance
-research · NIFTY 50 backtest · Indian equity markets · systematic trading research
+research · NIFTY 50 backtest · Indian equity markets · systematic trading research · market regime
+dashboard · volatility regime monitor · multi-asset regime detection · eleven-market volatility
+monitor
