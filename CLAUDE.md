@@ -560,11 +560,17 @@ Do not re-propose these; they are not oversights.**
    **LANDMINE: the notebook has no `plt` in scope.** End a plotting cell with the axis, not
    `plt.show()`; that cost one full papermill run.
    **The generator is NOT in the repo by design; the durable copy is the memory-dir path above.**
-2. **GitHub repo topics are still empty**, which is the largest remaining discoverability gap.
-   Outward-facing, so it needs an explicit go-ahead:
+2. **DONE. Repo topics are SET, and the "still empty" claim that stood here was false.** Measured
+   2026-07-29 with `gh repo view DogInfantry/Signals-Before-Storms --json repositoryTopics`:
+   eleven topics live, the ten from the command below plus `finance`. Someone ran it and the note
+   was never updated, so a session reading this would have re-run a no-op and reported a
+   discoverability gap that did not exist. Same defect class as the rest of this file: check the
+   artifact before repeating its claim.
    ```
-   gh repo edit DogInfantry/Signals-Before-Storms --add-topic quantitative-finance,hidden-markov-model,regime-detection,asset-allocation,backtesting,python,cvxpy,hmmlearn,walk-forward-validation,portfolio-optimization
+   gh repo view DogInfantry/Signals-Before-Storms --json repositoryTopics -q '.repositoryTopics'
    ```
+   Topics do NOT yet mention the monitor or the ledger. Adding some (`time-series`, `nextjs`,
+   `data-visualization`) is a live option, capped at 20 by GitHub, and stays outward-facing.
 3. **The research is finished and stopping there is legitimate**: the deliverable is a rigorous
    negative result, diagnosed, with its own retraction documented. Phases 0-11 plus the four-phase
    visual pass are done. What remains is presentation (step 0) and outward-facing publication.
