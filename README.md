@@ -16,7 +16,7 @@
 - **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** — the same fixed HMM pipeline run
   live on eleven markets, detection only. Which volatility regime each market is in right now, how
   long it has been there, and what that implies for position size.
-- **[The Storm Ledger](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/)** — a
+- **[The Storm Ledger](https://storm-ledger.vercel.app/)** — a
   broadsheet reading of that same eleven-market result: the same data, written as an argument
   instead of a dashboard.
 
@@ -401,7 +401,7 @@ negative settlement, where a log return is undefined.
 
 ## The Storm Ledger: the same eleven markets, read as a broadsheet
 
-**Live at [storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/).**
+**Live at [storm-ledger.vercel.app](https://storm-ledger.vercel.app/).**
 A third deployment (`ledger/`, Next.js, its own Vercel project) that reads the **same**
 `monitor.json` export the Regime Monitor draws from, but presents it as a broadsheet argument
 rather than a live instrument panel. Where the Monitor answers "where does each market stand right
@@ -475,7 +475,7 @@ has held that regime, and the position size that regime's measured volatility im
 
 **What is the Storm Ledger?**
 A broadsheet-style presentation, built in Next.js and live at
-[storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app](https://storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app/),
+[storm-ledger.vercel.app](https://storm-ledger.vercel.app/),
 that reads the same eleven-market data export as the Regime Monitor and turns it into a narrative:
 slopegraphs, a Crisis-simultaneity story, and a grouped instrument table. See
 [The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet).

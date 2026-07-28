@@ -10,6 +10,15 @@ leak-proof with an expanding walk-forward, charge transaction costs, benchmark a
 **PUBLIC**: https://github.com/DogInfantry/Signals-Before-Storms (Apache-2.0, CI green).
 **LIVE SITE**: https://signals-before-storms.vercel.app (Vercel project `signals-before-storms`,
 scope `anklesh-s-projects`, GIT-CONNECTED as of 2026-07-26, so **every push to `main` deploys**).
+**THE OTHER TWO LIVE SITES**: https://regime-monitor-lyart.vercel.app and
+https://storm-ledger.vercel.app. **Always link the PRODUCTION ALIAS, never a deployment URL.**
+Measured 2026-07-29: the README had shipped
+`storm-ledger-r0rxuq1fq-anklesh-s-projects.vercel.app`, a per-deployment URL, in FOUR places
+since `74c8bf0`. It answers `302` to `vercel.com/sso-api`, so every public reader and every
+crawler hit a login wall on the AEO-tightened README, while `storm-ledger.vercel.app` answers
+`200` with the real page. A deployment URL looks identical in a browser you are already signed
+into, which is exactly why this survived a visual check. Verify a published link with
+`curl -s -o /dev/null -w "%{http_code}"`, not by clicking it.
 - **`vercel.json` lives at the REPO ROOT, not in `docs/`, and it must stay there.** The project's
   Root Directory is the repo root, so `outputDirectory: "docs"` is the only thing making the site
   serve the right folder. Moving that file back into `docs/` deploys the repository instead, and
