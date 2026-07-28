@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   THE STORM LEDGER
+   Warm rag paper, warm near-black. The regime ramp is warm earth (dark gold,
+   burnt sienna, oxide), so the neutral world is warmed to match: on a cool
+   ground the ochres read as UI colour, on warm paper they read as printer's ink.
+   Exactly one accent, and no fifth colour anywhere on the page - verdicts,
+   filters, hover and emphasis are all ink value, weight and position.
+   ========================================================================== */
+
+:root {
+  --paper: #faf8f4;
+  --ink: #1a1714;        /* ~15:1  on paper */
+  --ink-soft: #5a534b;   /* ~7.3:1 - decks, captions, margin notes */
+  --ink-faint: #8b8378;  /* ~3.6:1 - RULES AND MARKS ONLY, never body text */
+  --rule: #e2ddd3;
+  --accent: #1a6ca8;     /* style.SERIES_A, already validated, 166.6deg from every regime hue */
+
+  /* Validated ordinal ramp. Used at FULL opacity wherever it appears, so the
+     measured contrast (3.17 / 6.27 / 11.90 vs surface) is the contrast that ships. */
+  --r0: #b8860b;         /* Bull   - 3.17:1. Clears the GRAPHICAL floor, FAILS the 4.5:1
+                            TEXT floor. Never set as a text colour; see .swatch. */
+  --r1: #9e4310;         /* Bear   - 6.27:1, may be text */
+  --r2: #6b1210;         /* Crisis - 11.90:1, may be text */
+  --wash: 0.06;          /* Crisis-only row wash */
+
+  --measure-text: 66ch;
+  --measure-margin: 30ch;
+  --pad-l: clamp(1.25rem, 6vw, 6rem);
+  --pad-r: clamp(1.25rem, 3vw, 3rem);
+}
+
+/* Dark mode is SELECTED, not flipped: its own steps, checked against its own surface. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #14130f;
+    --ink: #eae5db;
+    --ink-soft: #a9a297;
+    --ink-faint: #6f6a61;
+    --rule: #2b2822;
+    --accent: #7ab8e5;
+    --r0: #e8b84b;
+    --r1: #e07a3c;
+    --r2: #d1524a;
+    --wash: 0.10;        /* #d1524a on #14130f disappears at 6% */
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --font-serif: var(--font-newsreader);
+  --font-mono: var(--font-plex-mono);
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-optical-sizing: auto;   /* THE mechanism: opsz tracks font-size, so one family
+                                  behaves like a broadsheet's display-plus-text cut */
+  font-size: 1.0625rem;        /* 17px floor - Newsreader goes thin below this */
+  line-height: 1.62;
+  overflow-x: hidden;          /* the BODY never scrolls sideways; plates scroll themselves */
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------------------------------------------------------- grid ---- */
+/* A book page, not an app shell. Column 12 is deliberately ALWAYS EMPTY - that
+   is what makes the outer air, rather than a symmetric margin. */
+.sheet {
+  max-width: 84rem;
+  margin-inline: auto;
+  padding-inline: var(--pad-l) var(--pad-r);
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: clamp(1rem, 2vw, 2rem);
+}
+/* min-width:0 is load-bearing, not tidiness. Grid items default to min-width:auto,
+   so the plate's 660px min-width would widen its own track and push the whole BODY
+   into a horizontal scroll. Only the plate may scroll sideways. */
+.col-text, .col-note, .col-plate, .col-full { min-width: 0; }
+.col-text  { grid-column: 1 / 8;  max-width: var(--measure-text); }
+.col-note  { grid-column: 9 / 12; max-width: var(--measure-margin); }
+.col-plate { grid-column: 1 / 12; }
+.col-full  { grid-column: 1 / 13; }
+
+@media (max-width: 61.999rem) {
+  .col-text, .col-note, .col-plate, .col-full { grid-column: 1 / 13; max-width: 100%; }
+  .col-note {
+    border-left: 1px solid var(--rule);
+    padding-left: 1rem;
+    margin-block: 1.25rem;
+    max-width: 52ch;
+  }
+}
+
+section + section { margin-top: clamp(3.5rem, 8vw, 6.5rem); }
+
+/* ------------------------------------------------------------ type ramp --- */
+.folio {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 11px; line-height: 1.2; letter-spacing: 0.10em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.display {
+  font-weight: 400;
+  font-size: clamp(2.6rem, 1.6rem + 4.2vw, 4.4rem);
+  line-height: 1.04; letter-spacing: -0.02em;
+  max-width: 17ch; text-wrap: balance;
+}
+.standfirst {
+  font-size: 1.35rem; line-height: 1.5; color: var(--ink-soft); max-width: 52ch;
+}
+.section-head {
+  font-weight: 500;
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  line-height: 1.15; letter-spacing: -0.012em; max-width: 24ch;
+}
+.deck { font-size: 1.15rem; line-height: 1.55; color: var(--ink-soft); max-width: 60ch; }
+.margin-note { font-size: 0.875rem; line-height: 1.5; color: var(--ink-soft); }
+.label {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-weight: 500; font-size: 11px; line-height: 1.2;
+  letter-spacing: 0.08em; color: var(--ink-soft);
+}
+.data, .num {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.data { font-size: 0.9375rem; color: var(--ink); }
+.figure-num {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.1rem); line-height: 1.05;
+}
+
+/* A hairline that draws itself once on entry. Inherited from the research site's
+   existing signature motion, so the two properties read as one publication. */
+.rule-draw {
+  height: 1px; background: var(--rule); width: 100%;
+  transform-origin: left; transform: scaleX(var(--drawn, 1));
+  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; transition: none; }
+
+/* Bull may never be text. Where a Bull label needs colour it gets a swatch + ink text. */
+.swatch {
+  display: inline-block; width: 0.62rem; height: 0.62rem;
+  vertical-align: baseline; margin-right: 0.4em; border-radius: 1px;
+}
+
+.caption { font-size: 0.875rem; line-height: 1.5; color: var(--ink-soft); max-width: 68ch; }
+
+/* Rows separate by a RULE or a step in ink value. Never a fill, pill, chip,
+   shadow or lift - that is the structural guard against drifting back into a
+   dashboard. */
+.row-rule { border-bottom: 1px solid var(--rule); }
+.row-rule:hover { border-bottom-color: var(--ink-faint); }
+
+/* Instrument row. Two lines when narrow, one line from 48rem. The desktop track
+   list has a ~500px hard minimum, so hard-coding it forced the whole page into a
+   horizontal scroll on a phone. */
+.instrument {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem 1rem;
+  align-items: baseline;
+  padding: 0.62rem 0;
+}
+.instrument > :nth-child(3) { grid-column: 1; }
+.instrument > :nth-child(4) { grid-column: 2; text-align: right; }
+
+@media (min-width: 48rem) {
+  .instrument {
+    grid-template-columns: minmax(9rem, 3fr) minmax(6rem, 2fr) 3fr minmax(7rem, 3fr);
+    gap: 1rem;
+  }
+  .instrument > :nth-child(3),
+  .instrument > :nth-child(4) { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

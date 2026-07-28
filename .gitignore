@@ -25,6 +25,19 @@ data/*
 results/*
 !results/.gitkeep
 
+# `data/*` above has no leading slash, so it matches ANY directory named data at
+# any depth. The exported site payloads live in such directories and MUST ship, or
+# the Vercel build fails on a missing import. Re-include them explicitly.
+!monitor/data/*.json
+!ledger/public/data/*.json
+
+# Node / Next (the ledger app)
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
 # Vercel CLI link artifacts
 .vercel
 
