@@ -133,12 +133,15 @@ a { color: var(--series-a); }
 }
 .hero p { margin: 0; max-width: 60ch; font-size: 1.075rem; color: var(--ink-soft); }
 .hero strong { color: var(--ink); font-weight: 600; }
-/* Footnote to the stamp: what a date on a card actually means. Tokens only, no new values. */
-.asof {
-  margin: .5rem 0 0; max-width: 60ch;
-  font-size: var(--t-micro); line-height: 1.5; color: var(--ink-faint);
+/* Footnote to the stamp: what a date on a card actually means. Tokens only, no new values.
+   MUST be `.hero p.asof`, not `.asof`: `.hero p` above scores (0,1,1) and a bare class scores
+   (0,1,0), so the plain selector loses BOTH font-size and colour and the footnote renders as
+   body copy. Measured on the deployed page at 17.2px against the stamp's 12px. */
+.hero p.asof {
+  margin: .5rem 0 0; max-width: 62ch;
+  font-size: var(--t-micro); line-height: 1.55; color: var(--ink-faint);
 }
-.asof em { font-style: normal; color: var(--ink-soft); }
+.hero p.asof em { font-style: normal; color: var(--ink); }
 .stamp {
   display: inline-block; margin-top: 1.1rem; padding: .12rem .4rem;
   border: 1px solid var(--rule); border-radius: var(--r-control);
