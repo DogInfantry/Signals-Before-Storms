@@ -101,3 +101,23 @@ def test_a_market_with_no_current_label_is_refused():
 
 def test_an_empty_payload_is_refused_even_on_a_first_run():
     assert problems({}, _payload()) != []
+
+
+def test_a_payload_older_than_the_published_one_is_refused():
+    """The defect the first runner execution actually shipped (run 30394100175, 2026-07-28).
+
+    The published payload reached 2026-07-28 and the run replaced it with one reaching only
+    2026-07-27, rolling the live site a day backwards. Every market was present and labelled, so
+    nothing else in this module objected. Fetch a few minutes before a close, or catch a vendor
+    mid-update, and a stale answer is indistinguishable from a quiet day without this check.
+    """
+    old, new = _asset("AAA", 0), _asset("AAA", 0)
+    old["as_of"], new["as_of"] = "2026-07-28", "2026-07-27"
+    (why,) = problems(_payload(old), _payload(new))
+    assert "backwards" in why and "2026-07-28" in why
+
+
+def test_re_exporting_the_same_session_is_not_backwards():
+    """A quiet day re-exports identical dates. That must publish, not fail."""
+    same = _asset("AAA", 0)
+    assert problems(_payload(same), _payload(dict(same))) == []
