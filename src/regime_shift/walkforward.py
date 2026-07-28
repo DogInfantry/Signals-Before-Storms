@@ -39,6 +39,7 @@ def run_walk_forward(
     engine: str = "hmm",
     rank_col: str = "vol_21",
     rank_sign: float = 1.0,
+    return_model: bool = False,
 ):
     """Causal, leak-proof regime labels over the out-of-sample span.
 
@@ -58,6 +59,14 @@ def run_walk_forward(
 
     Returns a Series named 'regime' (int canonical labels, 0 = calmest) indexed by the
     out-of-sample dates.
+
+    return_model additionally hands back the FINAL fold's fitted model and the causal posterior
+    over that fold's test rows. The final fold is the live model by construction: it trains on
+    everything up to the last test block and filters causally forward, which is exactly how you
+    would run this on today's data. Anything reporting a current regime and its confidence must
+    come from that fit, not from a full-sample refit, or the confidence would describe a
+    different model than the label (and a full-sample refit would have seen the future for every
+    historical band it draws). Off by default, so every existing caller is byte-identical.
     """
     features = features.dropna()
     X = features.to_numpy(dtype=float)
@@ -65,6 +74,12 @@ def run_walk_forward(
     rank = rank_sign * features[col].to_numpy(dtype=float)
     wf = cfg.walkforward
     n = len(features)
+
+    if n <= wf.min_train:
+        raise ValueError(
+            f"{n} feature rows is not enough for a single fold at min_train={wf.min_train}; "
+            "the walk-forward would produce no labels at all"
+        )
 
     oos = pd.Series(index=features.index, dtype="float64", name="regime")
     splits = expanding_walk_forward_splits(n, wf.min_train, wf.test_size, wf.step)
@@ -87,4 +102,14 @@ def run_walk_forward(
         causal = model.decode_causal(seq)[len(train_idx) :]
         oos.iloc[test_idx] = causal
 
-    return oos.dropna().astype(int)
+    labels = oos.dropna().astype(int)
+    if not return_model:
+        return labels
+
+    # `model`, `seq`, `train_idx` and `test_idx` are the FINAL fold's, still bound after the loop.
+    proba = pd.DataFrame(
+        model.filtered_proba(seq)[len(train_idx) :],
+        index=features.index[test_idx],
+        columns=range(cfg.hmm.n_states),
+    )
+    return labels, model, proba

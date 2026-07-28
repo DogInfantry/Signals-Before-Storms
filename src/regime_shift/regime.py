@@ -155,12 +155,40 @@ class RegimeModel:
         """
         X = np.asarray(X, dtype=float)
         if self.engine == "hmm":
-            raw = self._forward_filter_states(X)
+            # argmax over states of the (row-normalized) filtered posterior; normalization is a
+            # per-row constant so it does not move the argmax.
+            raw = self._forward_filter(X).argmax(axis=1)
         else:
             raw = np.asarray(self._model.predict_online(X))
         return self._to_canonical(raw)
 
-    def _forward_filter_states(self, X: np.ndarray) -> np.ndarray:
+    def filtered_proba(self, X: np.ndarray) -> np.ndarray:
+        """Causal filtered posterior P(state_t = k | rows 0..t), columns in CANONICAL order.
+
+        The confidence behind `decode_causal`: the same forward pass over the same rows, but the
+        whole distribution instead of its argmax, so `filtered_proba(X).argmax(axis=1)` IS
+        `decode_causal(X)` by construction. Leak-proof for the same reason.
+
+        Column k is canonical label k (0 = calmest), reordered by the same `self._raw_order`
+        that `transition_matrix` uses. That reorder is the load-bearing line, not a formality:
+        a posterior left in RAW state order still sums to one and still looks exactly like a
+        confidence vector, so nothing downstream would complain about it pointing at the wrong
+        regime.
+
+        `decode_causal` skips normalization because a per-row constant cannot move an argmax.
+        Here it is the entire point, and log_alpha is unnormalized and decays with the sequence
+        log-likelihood, so the subtraction has to happen in log space.
+
+        HMM only: the Jump Model assigns hard states and exposes no posterior.
+        """
+        if self.engine != "hmm":
+            raise NotImplementedError("filtered_proba is HMM-specific")
+        log_alpha = self._forward_filter(np.asarray(X, dtype=float))
+        proba = np.exp(log_alpha - logsumexp(log_alpha, axis=1, keepdims=True))
+        return proba[:, self._raw_order]
+
+    def _forward_filter(self, X: np.ndarray) -> np.ndarray:
+        """Causal forward pass; returns UNNORMALIZED log_alpha (T, K) in RAW state order."""
         m = self._model
         framelogprob = m._compute_log_likelihood(X)  # (T, K) log emission probs
         with np.errstate(divide="ignore"):
@@ -173,9 +201,7 @@ class RegimeModel:
             # log_alpha[t, j] = emission[t, j] + logsumexp_i(log_alpha[t-1, i] + log_trans[i, j])
             prev = log_alpha[t - 1][:, None] + log_trans
             log_alpha[t] = framelogprob[t] + logsumexp(prev, axis=0)
-        # argmax over states of the (row-normalized) filtered posterior; normalization is a
-        # per-row constant so it does not move the argmax.
-        return log_alpha.argmax(axis=1)
+        return log_alpha
 
     # -- diagnostics ---------------------------------------------------------
     def transition_matrix(self) -> np.ndarray:

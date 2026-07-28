@@ -53,3 +53,27 @@ def test_walk_forward_labels_are_oos_and_sane():
     # end-to-end wiring sanity: calm OOS dates rank below turbulent ones
     oos_true = true.loc[regimes.index]
     assert regimes[oos_true == 0].median() < regimes[oos_true == 1].median()
+
+
+def test_return_model_hands_back_the_final_fold_without_moving_labels():
+    """return_model must be a pure addition, and its posterior must belong to the SAME fit.
+
+    Two ways this goes silently wrong: the extra work perturbs the default path (then every
+    published number moves), or the posterior is taken from a different model than the labels
+    (then the reported confidence describes a fit nobody traded).
+    """
+    cfg = load_config()
+    feats, _ = _two_regime_features()
+
+    plain = run_walk_forward(feats, cfg)
+    labels, model, proba = run_walk_forward(feats, cfg, return_model=True)
+
+    pd.testing.assert_series_equal(plain, labels)
+
+    # the posterior covers exactly the final fold's test rows, and argmaxes to their labels
+    assert proba.index.equals(labels.index[-len(proba) :])
+    np.testing.assert_allclose(proba.to_numpy().sum(axis=1), 1.0, atol=1e-9)
+    np.testing.assert_array_equal(
+        proba.to_numpy().argmax(axis=1), labels.to_numpy()[-len(proba) :]
+    )
+    assert model.transition_matrix().shape == (cfg.hmm.n_states, cfg.hmm.n_states)

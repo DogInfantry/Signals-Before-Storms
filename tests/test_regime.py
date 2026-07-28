@@ -50,6 +50,25 @@ def test_causal_decode_is_leak_proof():
     np.testing.assert_array_equal(full[:600], prefix)
 
 
+def test_filtered_proba_is_canonical_and_agrees_with_decode_causal():
+    """The posterior and the label must speak the SAME label space.
+
+    A posterior left in raw state order still sums to 1 and still passes every shape and range
+    check, so nothing downstream would complain: a monitor would report 90% confidence in the
+    wrong regime. Negating rank_by reverses _canonical_order deterministically, so the second
+    pass forces a non-identity permutation rather than hoping the seed happens to supply one.
+    """
+    X, rank_by, _ = _two_regime_data()
+    for rank in (rank_by, -rank_by):
+        model = RegimeModel(engine="hmm", n_states=2, random_state=42).fit(X, rank_by=rank)
+        proba = model.filtered_proba(X)
+
+        assert proba.shape == (X.shape[0], 2)
+        assert (proba >= 0).all()
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-12)
+        np.testing.assert_array_equal(proba.argmax(axis=1), model.decode_causal(X))
+
+
 def test_labels_are_stable_and_risk_ordered():
     X, rank_by, true = _two_regime_data()
     model = RegimeModel(engine="hmm", n_states=2, random_state=42).fit(X, rank_by=rank_by)
