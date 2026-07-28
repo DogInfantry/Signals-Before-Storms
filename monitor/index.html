@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regime Monitor - volatility states across eleven markets</title>
+<meta name="description" content="Which volatility regime eleven markets are in right now, how long they have been there, and what that implies for position size. Detection only: it reads risk, not direction.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top__id">Regime Monitor</div>
+  <nav class="top__nav">
+    <a href="https://signals-before-storms.vercel.app">Research</a>
+    <a href="https://github.com/DogInfantry/Signals-Before-Storms">Code</a>
+  </nav>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Where each market sits right now.</h1>
+    <p>A hidden Markov model, refit out of sample on every market below, sorts each day into
+    three volatility states. This panel reports which one each market is in today, how long it
+    has been there, and what that regime's measured volatility implies for position size.
+    <strong>It reads risk, not direction.</strong></p>
+    <span class="stamp" id="stamp">loading</span>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="filters" id="filters"></div>
+  <div class="board" id="board"></div>
+
+  <section id="replication">
+    <h2>Does the research finding hold outside the two universes it was found on?</h2>
+    <p class="lede" id="replication-lede"></p>
+    <div class="scroll"><table id="repl-table"></table></div>
+  </section>
+
+  <footer class="foot">
+    <h2>Method</h2>
+    <p>Three-state Gaussian HMM on seven causal features per market (log-return momentum over
+    5/21/63/126 sessions, realized volatility over 5/21/63). Fitted with an expanding
+    walk-forward: every fold standardizes on its training rows only, refits the model, and
+    decodes the test block with an online forward filter, so no label ever uses a future
+    observation. Each market is fitted independently, so "Crisis" means crisis for that market
+    rather than one global state pasted across eleven rows. States are ordered by trailing
+    volatility, and the label shown is the newest completed session.</p>
+    <p><strong>Implied size</strong> is target volatility divided by the volatility measured in
+    that regime, capped at 1.0. It is arithmetic on a measured quantity, shown so a risk budget
+    can be read off the regime. It is not a backtested strategy, not a traded position, and not
+    advice. The allocation rule built on these states is shown losing, honestly, in the
+    <a href="https://signals-before-storms.vercel.app">research write-up</a>.</p>
+    <p>Data from Yahoo Finance. Rebuild with
+    <code>uv run python tools/export_monitor_data.py</code>.
+    Anklesh Rawat &middot;
+    <a href="https://github.com/DogInfantry/Signals-Before-Storms">source</a></p>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

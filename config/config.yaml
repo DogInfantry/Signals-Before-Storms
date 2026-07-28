@@ -54,3 +54,45 @@ rebalance: "on_regime_change"   # or "monthly"
 rebalance_confirm_days: 3       # hysteresis: days a new regime must persist before we trade it
 conditional_moments: true       # estimate mu/Sigma from past days in the SAME regime
 conditional_min_obs: 126        # below this many same-regime days, fall back to all history
+
+# ---------------------------------------------------------------------------------------------
+# Client-facing regime monitor. Detection only: no optimizer, no backtest, no benchmark.
+#
+# This block has its OWN date window and never reads `dates:` above, because the monitor runs to
+# TODAY while docs/data/{india,us}.json are pinned to 2015-2024. Sharing one `end` would move
+# every published number the first time the monitor was refreshed.
+#
+# Running the same FROZEN pipeline on new tickers is out-of-sample generalization, not a knob
+# search: every asset is reported, none is adopted, no knob is re-chosen. The deflated-Sharpe
+# trial count therefore stays at 7.
+# ---------------------------------------------------------------------------------------------
+monitor:
+  start: "2015-01-01"       # end is always today; see the note above
+  chart_years: 3            # display window for the sparklines; statistics use the FULL oos
+  target_vol: 0.10          # risk budget the implied-size readout is quoted against
+  min_feature_rows: 1000    # ~4y of features, >= 12 folds. Below ~380 price rows there are NO
+                            # folds at all and the failure downstream is opaque, not a message.
+  crisis_horizon: 21        # sessions ahead for the "enters Crisis within" hitting probability
+  min_episodes: 3           # crisis EPISODES required before a return-ordering verdict is made.
+                            # Phase 10's lesson, applied up front: 2 episodes retracted this
+                            # project's own jump-model finding. Days are not a sample size.
+
+  # Tickers probed live 2026-07-27: every one returns 2845-2907 rows from 2015-01-02 to
+  # 2026-07-24. Deliberately EXCLUDED, with the measurement that ruled them out:
+  #   NIFTYBEES.NS  97.7% ann vol, max |log ret| 2.299 -- same 100x print defect as GOLDBEES
+  #   GOLDBEES.NS  194.2% ann vol, max |log ret| 4.607 -- landmine 1, still live in the feed
+  #   ^VIX / ^INDIAVIX  real daily moves clear the 0.5 outlier guard; they are features, not
+  #                     investables
+  #   crypto  metrics.label_profile hardcodes periods=252, wrong for a 365-session asset
+  assets:
+    - {ticker: "^NSEI",    name: "NIFTY 50",          asset_class: "Equity India", currency: "INR"}
+    - {ticker: "^NSEBANK", name: "Bank NIFTY",        asset_class: "Equity India", currency: "INR"}
+    - {ticker: "^CNXIT",   name: "NIFTY IT",          asset_class: "Equity India", currency: "INR"}
+    - {ticker: "SPY",      name: "S&P 500",           asset_class: "Equity US",    currency: "USD"}
+    - {ticker: "QQQ",      name: "Nasdaq 100",        asset_class: "Equity US",    currency: "USD"}
+    - {ticker: "TLT",      name: "US 20y+ Treasury",  asset_class: "Rates",        currency: "USD"}
+    - {ticker: "GC=F",     name: "Gold",              asset_class: "Commodity",    currency: "USD"}
+    - {ticker: "SI=F",     name: "Silver",            asset_class: "Commodity",    currency: "USD"}
+    - {ticker: "CL=F",     name: "WTI crude",         asset_class: "Commodity",    currency: "USD"}
+    - {ticker: "HG=F",     name: "Copper",            asset_class: "Commodity",    currency: "USD"}
+    - {ticker: "NG=F",     name: "Natural gas",       asset_class: "Commodity",    currency: "USD"}

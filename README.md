@@ -316,6 +316,78 @@ economically sensible behaviour the model was never told to produce.
 
 ---
 
+## The Regime Monitor: the same model on eleven markets
+
+A second, separate deployment (`monitor/`, its own Vercel project) that ships the part of this
+research that **worked**. Detection is what held up, so the monitor reports which volatility regime
+each of eleven markets is in right now, how long it has been there, the transition matrix, the odds
+of entering Crisis within 21 sessions, and what that regime's measured volatility implies for
+position size. Rebuild it with:
+
+```
+uv run python tools/export_monitor_data.py
+```
+
+**It is detection only.** No optimizer, no backtest, no benchmark. The regime-to-weights stance map
+is not shipped here, because this repo's own scorecard shows it losing outright on US; putting it in
+front of a reader would be selling the part that failed. The implied-size readout is
+`target_vol / regime realized vol`, capped at 1 - arithmetic on a measured quantity, displayed as
+such. It is **not** the inverse-variance stance-map test logged as declined trial 8, and the page
+says so. The deflated-Sharpe trial count stays at **7**: every asset is reported, none is adopted,
+no knob is re-chosen.
+
+Three Indian equity indices (NIFTY 50, Bank NIFTY, NIFTY IT), three global (SPY, QQQ, TLT) and five
+commodities (gold, silver, WTI, copper, natural gas), each fitted **independently** so that "Crisis"
+means crisis for that market rather than one global state pasted across eleven rows.
+
+### What eleven markets say about the central finding
+
+Running the frozen pipeline on new tickers is out-of-sample generalization, and it **sharpened the
+negative result rather than confirming it**:
+
+| Claim | Result across 11 markets |
+|---|---|
+| Realized volatility rises with the state | **11 of 11** |
+| Return ordering strictly backwards | 2 of 11 (SPY, gold) |
+| Return ordering strictly ascending | 2 of 11 (NIFTY IT, natural gas) |
+| No monotone ordering at all | **7 of 11** |
+| Crisis pays more than calm, endpoints only | 6 of 11, a coin flip |
+
+The volatility machinery is universal. The *directional consequence* is not. The correct statement
+is therefore stronger than "returns run backwards": **these states do not rank returns at all**, and
+the backwards ordering measured on SPY and NIFTY over 2015-2023 was one draw from an unordered
+distribution rather than a law. A ranking that changes sign from market to market cannot be traded
+in either direction, whichever way it points.
+
+Two smaller corrections fell out of building it, both recorded because they were measured:
+
+- **NIFTY 50 no longer reads "backwards" on data through 2026.** It reads unordered. The published
+  2015-2023 result stands for its own window; the extension does not reproduce it.
+- **`NIFTYBEES.NS` carries the same 100x print defect as `GOLDBEES.NS`** (97.7% annualized
+  volatility, max daily |log return| 2.299, re-probed 2026-07-27). The monitor uses `^NSEI` and
+  `GC=F` directly and never touches either ETF.
+
+### Two things the monitor does differently, and why
+
+**The transition matrix is counted off the realized out-of-sample label path, not read out of
+`transmat_`.** They are different quantities and on real data they disagree badly: `transmat_`
+implies 50-80 session dwells against a realized 3-6 everywhere, and on QQQ, TLT and gold hmmlearn
+settled into a near-deterministic 2-cycle on the final fold, reading as "98.6% chance of switching
+tomorrow" beside a chart showing regimes that last weeks. A panel captioned *given today's regime,
+where tomorrow lands* has to describe the path it is drawing. After the change, the transition
+diagonal and the diagonal implied by measured dwell agree to within **0.008** on every market.
+
+**Crisis odds are a hitting probability, not a marginal.** `p @ P^21` is the chance of *sitting* in
+Crisis on day 21; the honest answer to "within the next 21 sessions" makes the Crisis row absorbing
+first. The distinction is not cosmetic - on NIFTY 50 the wrong construction read 0.3% against a
+correct 15%.
+
+Each market carries its own data-quality notes on its card rather than in a footnote: natural gas
+trips the `|log return| > 0.5` outlier guard once, and WTI crude loses two rows to the April 2020
+negative settlement, where a log return is undefined.
+
+---
+
 ## FAQ
 
 **What is a market regime?**

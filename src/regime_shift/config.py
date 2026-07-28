@@ -36,6 +36,11 @@ class Config(BaseModel):
     rebalance_confirm_days: int = 3
     conditional_moments: bool = True
     conditional_min_obs: int = 126
+    # Client-facing regime monitor (tools/export_monitor_data.py). Declared, not free-form:
+    # pydantic ignores undeclared keys, so a `monitor:` block without this field would load
+    # silently as nothing at all. Deliberately NOT nested under `dates`/`universes`, because
+    # the monitor runs to today and those two feed the PINNED docs/data exports.
+    monitor: dict = {}
 
 
 def _default_path() -> Path:
