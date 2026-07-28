@@ -1,0 +1,102 @@
+name: monitor
+
+# Re-runs the FROZEN monitor pipeline on live prices and publishes the result. Weekly, because
+# the signal is end-of-day and every push here rebuilds all three Vercel projects.
+#
+# This is the one workflow in the repo that WRITES to main, so every guard below is there to make
+# a bad run a no-op rather than a bad publish. It commits only the two monitor payloads, and it
+# refuses to commit at all if the exporter fails, if a ticker has gone stale, if the two payloads
+# disagree, or if anything under docs/data moved. docs/data is pinned to cfg.dates and must never
+# be touched by this pipeline: that property is asserted in export_monitor_data.py's own docstring
+# and is checked here rather than trusted.
+#
+# Nothing about the research changes. No knob is re-chosen and no model is re-selected, so the
+# deflated-Sharpe trial count stays at 7.
+
+on:
+  schedule:
+    # Saturday 06:00 UTC: after Friday's US close with margin, both universes shut.
+    - cron: "0 6 * * 6"
+  workflow_dispatch:
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync dependencies
+        # The jump engine is not on this path: the monitor decodes with the HMM only.
+        run: uv sync
+
+      - name: Keep the published payload for the diff
+        run: cp monitor/data/monitor.json "${RUNNER_TEMP}/prev-monitor.json"
+
+      - name: Export the monitor
+        # pipefail is NOT on by default in an Actions shell, and `tee` always succeeds, so without
+        # this line a failed export would exit 0 and the guards below would inspect the LAST GOOD
+        # payload and happily republish it.
+        run: |
+          set -o pipefail
+          uv run python tools/export_monitor_data.py 2>&1 | tee "${RUNNER_TEMP}/export.log"
+
+      - name: Refuse to publish a bad payload
+        run: |
+          set -euo pipefail
+
+          # The exporter prints this when a ticker is more than five sessions behind, which means
+          # the vendor stopped answering for it rather than that the market was quiet.
+          if grep -q "WARNING stale" "${RUNNER_TEMP}/export.log"; then
+            echo "Stale ticker reported by the exporter. Not publishing."
+            exit 1
+          fi
+
+          # docs/data is the RESEARCH payload, pinned to cfg.dates. This pipeline running to today
+          # must never move it, or the site and the README stop agreeing.
+          if ! git diff --quiet -- docs/data; then
+            echo "This run modified docs/data, which it must never do."
+            git diff --stat -- docs/data
+            exit 1
+          fi
+
+          # The ledger reads a mirror of the same bytes. A mirror that drifted would put two
+          # different truths on two live sites.
+          cmp monitor/data/monitor.json ledger/public/data/monitor.json
+
+          uv run python tools/check_monitor_payload.py \
+            "${RUNNER_TEMP}/prev-monitor.json" monitor/data/monitor.json
+
+      - name: Publish
+        id: publish
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- monitor/data/monitor.json ledger/public/data/monitor.json; then
+            echo "No change in the payload."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add monitor/data/monitor.json ledger/public/data/monitor.json
+          git commit -m "Refresh the regime monitor through $(date -u +%Y-%m-%d)"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Alert on a regime change
+        # Skipped cleanly when the secret is absent, so the refresh never depends on the webhook.
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          uv run python tools/regime_alert.py \
+            "${RUNNER_TEMP}/prev-monitor.json" monitor/data/monitor.json \
+            ${DISCORD_WEBHOOK_URL:+--webhook "$DISCORD_WEBHOOK_URL"}

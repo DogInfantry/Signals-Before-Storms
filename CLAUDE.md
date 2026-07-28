@@ -189,14 +189,25 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
   transition matrix and mean weights per regime. Curves are strided WEEKLY for payload size; every
   statistic is still computed daily. **Re-run it after anything that moves a number**, or the site
   and the README disagree.
-- `tests/` (67 total, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
+- `tools/export_monitor_data.py`: `uv run python tools/export_monitor_data.py [TICKER ...]` ->
+  `monitor/data/monitor.json` AND the `ledger/public/data/monitor.json` mirror (same bytes, so the
+  two sites cannot drift). Detection only: no optimizer, no backtest, no benchmark, no bootstrap.
+  **It must never touch `docs/data/`**, which is pinned to `cfg.dates`; the workflow checks that
+  rather than trusting it.
+- `tools/regime_alert.py`: `changes(old, new)` + `render(changed, generated)` + `post(webhook,
+  msg)`. Stdlib only, no network unless `--webhook` is passed. Detection language only.
+- `tools/check_monitor_payload.py`: `problems(published, fresh) -> list[str]`, empty means safe to
+  publish. Exit 1 blocks the scheduled commit.
+- `tests/` (78 total plus 4 skipped, all green, synthetic/seeded/offline on purpose): `test_smoke` 2,
   `test_style` (palette floors), `test_features` 3 (the fixture carries ALL FOUR asset roles,
   asserts no `*_ret` reaches the feature matrix, and pins the 9-column model matrix against macro
   widening it), `test_regime` 6 (causal decode, canonical labels, transition, dwell, jump
   engine via importorskip, label_episodes run counting incl. leading/trailing single-day runs), `test_walkforward` 2, `test_optimize` 5, `test_backtest` 7 (1-day lag
   by flipping a future label, flat-then-entry, conditional moments + fallback, target_vol,
   zero-turnover-is-free), `test_metrics` 13 (episode_profile ex-largest, paired pairing + CI brackets its point estimate, subperiod partition), `test_benchmarks` 6 (incl. cash sleeve and the 60/40
-  cash-leg fallback), `test_data` 3.
+  cash-leg fallback), `test_data` 3, `test_regime_alert` 9 (the alert fires on a transition, is
+  silent otherwise, never words a position, does not drop an unseen market; the publish guard
+  refuses a payload that lost a market or a label).
 - `notebooks/real_run.py`: the real-data driver. `uv run python notebooks/real_run.py [india|us]`,
   **defaulting to india**. Builds the model master MACRO-FREE, then loads macro separately (FRED
   first, Yahoo proxies on failure) and PRINTS which leg answered, because the module silences
@@ -223,7 +234,7 @@ FRED, pydantic, pyyaml. jumpmodels 0.1.1 in the `jump` extra (INSTALLED and work
 
 ## Current state
 - **Spec-adherence pass landed 2026-07-24. Verify `git status` before assuming anything is pushed.**
-- 67 tests green, ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
+- 78 tests green (4 skipped), ruff clean. `uv sync` alone gives a working dev env; `uv sync --extra jump` adds
   the second regime engine.
 - Real data pulled and cached in `data/cache/`. yfinance fine; **FRED is still blocked from Python
   on this network** (re-probed 2026-07-26: ReadTimeout at 25s from `requests`, even though `curl`
@@ -368,12 +379,30 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
    benchmark change, NOT a searched variant, so the DSR trial count stays at 7.
 
 ## Active task
-**Nothing in flight.** The visual-integrity pass, the macro leg and the interactive site are all
-committed on `main`. The worktree branch `claude/sleepy-villani-42671c` was fast-forward merged
-into `main` on 2026-07-26 and its worktree removed (the directory could not be deleted, permission
-denied, but git no longer tracks it: `git worktree list` shows only the main checkout).
-**NOTHING IS PUSHED.** `main` is many commits ahead of `origin/main` and needs an explicit
-go-ahead, as do the repo topics.
+**Nothing in flight. EVERYTHING IS PUSHED**: as of 2026-07-29 `main == origin/main`, verified by
+`git rev-list --left-right --count origin/main...main` returning `0 0`. The old "NOTHING IS
+PUSHED" warning that stood here was true on 2026-07-26 and is now false; do not act on it. The
+worktree branch `claude/sleepy-villani-42671c` was merged on 2026-07-26 and git no longer tracks
+it. Repo topics are still empty and still need a go-ahead (Next steps 2).
+
+Landed 2026-07-28, all pushed, all three sites live:
+- `fe0cb14` causal posterior: `_forward_filter` returns `log_alpha`, `filtered_proba` softmaxes it
+  into canonical column order, `run_walk_forward` hands back the live model. No published number
+  moved; `decode_causal` returns the identical array.
+- `b3ff217` the regime monitor: `tools/export_monitor_data.py` plus `monitor/`. Eleven markets on
+  the FROZEN pipeline, each with its own master, scaler and HMM (eleven exchange calendars must
+  never be inner-joined). Every market reported, none adopted, so DSR trials stay at 7.
+  Two vendor traps avoided by measurement: NIFTYBEES.NS reads 97.7% annualized vol and
+  GOLDBEES.NS 194.2%, so Indian equity comes from the index and gold from GC=F.
+  `p_crisis_21` is a HITTING probability from an absorbing-chain construction, null when the
+  market is already in Crisis, NOT the marginal at session 21.
+- `e4abe57` The Storm Ledger: `ledger/`, Next.js statically prerendered, reads a MIRROR of the
+  same `monitor.json` so the two sites cannot disagree.
+- `74c8bf0` README folds both in, with live URLs.
+
+Landed 2026-07-29 (scheduled refresh; see the section below):
+- `.github/workflows/monitor.yml`, `tools/regime_alert.py`, `tools/check_monitor_payload.py`,
+  `tests/test_regime_alert.py`.
 
 Landed 2026-07-26:
 - `cef41cb` macro leg: `load_credit_proxies`, macro-free model master, the widening-guard test.
@@ -459,6 +488,56 @@ the paired test and the episode counting ARE the deliverable and are what make t
 all still exist, in `story.html`, linked from the masthead and from the body. If a future session
 trims further, trim `story.html` last.
 
+## THE SCHEDULED REFRESH (2026-07-29), and the improvement plan that was triaged to build it
+
+`.github/workflows/monitor.yml` re-runs the FROZEN monitor pipeline weekly (Saturday 06:00 UTC,
+plus `workflow_dispatch`) and pushes the two payloads. **It is the only thing in this repo that
+writes to `main` unattended**, and a push to `main` rebuilds ALL THREE Vercel projects, which is
+the intended publication mechanism rather than a regression.
+
+It is built to FAIL CLOSED, and every guard exists because the corresponding failure is silent:
+- `set -o pipefail` in the export step. Actions runs `bash -e` WITHOUT pipefail and `tee` always
+  succeeds, so without that line a failed export exits 0 and the guards inspect, then republish,
+  the last good payload. This was a real fail-open bug caught before the file ever ran.
+- Aborts on the exporter's `WARNING stale` line (a ticker more than five sessions behind means the
+  vendor stopped answering, not that the market was quiet). It does NOT abort on a `note:` line,
+  because NG=F trips the outlier guard by design and would otherwise block every run forever.
+- Asserts `git diff --quiet -- docs/data`. That payload is pinned to `cfg.dates`; this pipeline
+  runs to today and must never move it, or the site and the README stop agreeing.
+- `cmp` on the monitor payload against the ledger mirror, so two live sites cannot show two truths.
+- `tools/check_monitor_payload.py`: refuses a payload with FEWER markets than the published one or
+  with any market missing a current label. A vendor outage does not raise; the market just vanishes
+  from the page.
+- `tools/regime_alert.py` diffs the previous committed payload against the fresh one and POSTs to
+  `secrets.DISCORD_WEBHOOK_URL` on any label change. **The secret is not created yet**; the step
+  is written so an absent secret prints and skips the POST, so the refresh never depends on it.
+  A market absent from the OLD payload is reported as newly tracked rather than dropped, because
+  silence there is indistinguishable from a quiet week.
+  **It speaks in STATES and probabilities and never in weights or allocations**, and a test pins
+  that wording, because the stance map is the part of this research that FAILED and the monitor
+  deliberately ships only the part that worked.
+
+**PERMANENTLY DECLINED, triaged 2026-07-29 against an external "productionize this repo" plan.
+Do not re-propose these; they are not oversights.**
+- **Optuna / grid sweep over `n_components`, `covariance_type`, seeds.** Hundreds of undeclared
+  trials; honest deflation afterwards would zero every published Sharpe. K is already answered by
+  BIC (elbow at 3 on India, none on US) and `sensitivity_sweep` already reports a one-knob surface
+  and adopts nothing. Refusing the sweep IS the thesis.
+- **A `POST /backtest/run` API with user-supplied tickers and knobs.** An arbitrary knob-search
+  service bolted to a repo whose entire point is that knob searches are charged for.
+- **Serving a suggested allocation live.** The stance map lost outright on US. Shipping it as
+  advice would ship the failure, and drifts research into advice.
+- **FastAPI + JWT + slowapi + Postgres/TimescaleDB + Redis + Docker Compose + Sentry + Prometheus
+  + Grafana.** There is no server. The signal is EOD, deterministic, from free data; a committed
+  JSON on a schedule serves it with zero standing infrastructure and zero bill, and git history IS
+  the persistence layer.
+- **joblib-parallel walk-forward.** A full run is minutes, and the stated purpose of the speedup
+  was the sweep above.
+- **MA crossover / breakout / ADX features.** Near-duplicates of `mom_5/21/63/126`, which are
+  already fitted and still produced a volatility-only state space.
+- Skewness / semivariance (trial 9) and per-regime inverse-variance sizing (trial 8) remain
+  DEFERRED, not declined, and the user chose no new trials on 2026-07-29. DSR count stays at 7.
+
 ## Next steps
 1. **DONE 2026-07-26: the notebook is regenerated against the macro section and the figures.**
    Kept here as the regeneration recipe, not as an open task. Two commands, the first only if the
@@ -512,12 +591,15 @@ trims further, trim `story.html` last.
 ## How to run
 ```
 uv sync --extra jump          # dev group installs by default
-uv run pytest -q              # 67 tests
+uv run pytest -q              # 78 tests, 4 skipped
 uv run ruff check .
 uv run python -m regime_shift.data                 # data smoke (network)
 uv run python notebooks/real_run.py india          # PRIMARY: full run + 16 figures
 uv run python notebooks/real_run.py us             # robustness; must stay bit-identical
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
+uv run python tools/export_site_data.py all        # docs/data/*.json, after anything that moves a number
+uv run python tools/export_monitor_data.py         # monitor/data + ledger mirror; the weekly Action runs this
+uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # dry run, no webhook, no network
 ```
 
 ## Gotchas
