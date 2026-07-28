@@ -1,7 +1,10 @@
 name: monitor
 
-# Re-runs the FROZEN monitor pipeline on live prices and publishes the result. Weekly, because
-# the signal is end-of-day and every push here rebuilds all three Vercel projects.
+# Re-runs the FROZEN monitor pipeline on live prices and publishes the result. DAILY on weekdays,
+# because the monitor's own headline says "where each market sits right now" and a weekly cadence
+# made that claim false for up to seven days at a stretch. Every push here rebuilds all three
+# Vercel projects; the payload is unchanged on a quiet day, and an unchanged payload commits
+# nothing, so a quiet market costs one Actions run and no deploy at all.
 #
 # This is the one workflow in the repo that WRITES to main, so every guard below is there to make
 # a bad run a no-op rather than a bad publish. It commits only the two monitor payloads, and it
@@ -15,8 +18,10 @@ name: monitor
 
 on:
   schedule:
-    # Saturday 06:00 UTC: after Friday's US close with margin, both universes shut.
-    - cron: "0 6 * * 6"
+    # 06:00 UTC Tuesday to Saturday. That is AFTER the previous weekday's US close (20:00 UTC) and
+    # BEFORE the Indian open (03:45 UTC is earlier, so India's session for that date is already
+    # complete too). Mon is skipped because Sunday has no session to report.
+    - cron: "0 6 * * 2-6"
   workflow_dispatch:
 
 concurrency:

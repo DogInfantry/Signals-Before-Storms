@@ -42,6 +42,8 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
 <header class="topbar">
   <span class="topbar__id">Signals-Before-Storms</span>
   <nav class="topbar__nav">
+    <a href="https://regime-monitor-lyart.vercel.app/">Live monitor</a>
+    <a href="https://storm-ledger.vercel.app/">The Ledger</a>
     <a href="story.html">The full log</a>
     <a href="https://github.com/DogInfantry/Signals-Before-Storms">Repository</a>
   </nav>
@@ -151,6 +153,44 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
     </p>
   </section>
 
+  <!-- ============================ COMPANIONS ============================ -->
+  <!-- The page above is the RESEARCH, fixed at 2015-2024. These two run the same frozen pipeline
+       forward to today. Placed after the charts on purpose: the direction contract reserves the
+       first viewport for the verdict and the live chart, and the topbar carries these links for
+       a reader who wants them immediately. -->
+  <section class="how">
+    <h2>The same model, running live</h2>
+    <p class="lede">
+      Everything above is the research window, fixed at 2015 to 2024 so the numbers cannot move
+      under you. The same pipeline, with every knob frozen, also runs forward to the present on a
+      wider set of markets. Nothing was re-fitted or re-chosen to make it work there, which is what
+      makes it a genuine out-of-sample test rather than a second search.
+    </p>
+    <dl class="specs">
+      <div>
+        <dt><a href="https://regime-monitor-lyart.vercel.app/">Regime Monitor</a></dt>
+        <dd>
+          Eleven markets across four asset classes, each with its own model. Which state every
+          market is in right now, how confident the filter is, how long it has been there, and
+          what that regime's measured volatility implies for position size. Reads risk, not
+          direction.
+        </dd>
+      </div>
+      <div>
+        <dt><a href="https://storm-ledger.vercel.app/">The Storm Ledger</a></dt>
+        <dd>
+          The same eleven-market result read as a broadsheet: every price path above its own
+          regime rail, so you can see for yourself that inside the darkest bands several markets
+          are rising. That is the finding, in one image.
+        </dd>
+      </div>
+    </dl>
+    <p class="micro">
+      The volatility ordering replicates on 11 of 11 markets. The return ordering does not, and it
+      does not fail the same way twice, which is a stronger negative than the one found here.
+    </p>
+  </section>
+
   <section class="how">
     <h2>How it is built</h2>
     <dl class="specs">
@@ -162,7 +202,7 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
       <div><dt>Data</dt><dd>yfinance daily from 2015: NIFTY, an overnight cash fund and gold on India, SPY, TLT and GLD on the US, plus each market's VIX</dd></div>
     </dl>
     <p class="micro">
-      Python 3.11+, uv-managed, 67 tests, Apache-2.0. The leak-proofing is asserted rather than
+      Python 3.11+, uv-managed, 78 tests, Apache-2.0. The leak-proofing is asserted rather than
       stated: flip a future label and the backtest must not notice, or the test fails.
     </p>
   </section>
