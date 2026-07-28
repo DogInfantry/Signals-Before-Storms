@@ -14,6 +14,18 @@ scope `anklesh-s-projects`, GIT-CONNECTED as of 2026-07-26, so **every push to `
   Root Directory is the repo root, so `outputDirectory: "docs"` is the only thing making the site
   serve the right folder. Moving that file back into `docs/` deploys the repository instead, and
   the repo root has no `index.html`, so production becomes a 404.
+- **THREE Vercel projects now share this ONE repo, and each reads a DIFFERENT vercel.json. Do not
+  consolidate them.** A Vercel project is scoped by its Root Directory and reads the config found
+  there, so the three cannot collide and none overwrites another:
+  | Project | Root Directory | Framework | Config |
+  |---|---|---|---|
+  | `signals-before-storms` | repo root | Other (`framework: null`) | `/vercel.json` |
+  | `regime-monitor` | `monitor` | Other | `/monitor/vercel.json` |
+  | `storm-ledger` | `ledger` | Next.js | `/ledger/vercel.json` |
+  Merging these "duplicate" configs into one breaks two of the three deploys. Two guards keep the
+  ORIGINAL project safe now that a Next.js app lives in the repo: there is **no `package.json` at
+  the repo root**, and the root config pins `"framework": null`. Do not add a root `package.json`.
+  Every push to `main` rebuilds ALL THREE projects; that is expected, not a regression.
 - Repo topics and homepage URL are set. `docs/data/*.json` revalidates every request, `/img/*`
   caches for a week with revalidation (NOT immutable: two figures changed content without changing
   filename, and immutable meant a returning reader kept the stale one for a year).
