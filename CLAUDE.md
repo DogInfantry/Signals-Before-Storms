@@ -392,7 +392,16 @@ to a variant that scored higher, that is precisely the selection bias the DSR ex
 `git rev-list --left-right --count origin/main...main` returning `0 0`. The old "NOTHING IS
 PUSHED" warning that stood here was true on 2026-07-26 and is now false; do not act on it. The
 worktree branch `claude/sleepy-villani-42671c` was merged on 2026-07-26 and git no longer tracks
-it. Repo topics are still empty and still need a go-ahead (Next steps 2).
+it. **Repo topics are SET** (eleven, measured 2026-07-29); the "still empty" sentence that stood
+here was false and is the second instance of this file being trusted over the artifact, see
+Gotchas.
+
+**THE RESEARCH IS FINISHED AND THE RIGHT DEFAULT IS TO STOP.** Every phase is done, every site is
+live and cross-linked, the monitor refreshes itself daily behind guards that fail closed, and the
+deliverable is a rigorous negative result with its own retraction on record. A session that goes
+looking for more work on this repo will manufacture it: on 2026-07-29 an audit was launched to
+find what was left, and the three commits immediately preceding it were already fixes for the
+defects it would have found. Verify state, say so, and stop.
 
 Landed 2026-07-28, all pushed, all three sites live:
 - `fe0cb14` causal posterior: `_forward_filter` returns `log_alpha`, `filtered_proba` softmaxes it
@@ -660,6 +669,25 @@ uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # print
 ```
 
 ## Gotchas
+- **THIS FILE IS EVIDENCE, NOT TRUTH. Run the check before asserting any state.** On 2026-07-29
+  a session read this file and made TWO confident claims that the artifacts disproved: that repo
+  topics were "the largest remaining discoverability gap" (eleven were already set) and that the
+  monitor workflow had "NEVER executed on a GitHub runner" (run
+  [30394100175](https://github.com/DogInfantry/Signals-Before-Storms/actions/runs/30394100175)
+  went green on 2026-07-28, and this file said so). Both were reported to the user before being
+  measured. The four checks that settle almost everything, and cost seconds:
+  ```
+  git log --oneline -10 && git rev-list --left-right --count origin/main...main
+  gh run list --workflow=monitor.yml --limit 5
+  gh repo view DogInfantry/Signals-Before-Storms --json repositoryTopics -q '.repositoryTopics'
+  uv run pytest -q
+  ```
+- **A TEST-COUNT CHANGE TOUCHES FOUR PLACES, and it has drifted twice.** 67 -> 78 -> 80 inside one
+  day, because guard tests landed after the docs were written. Any commit that adds or removes a
+  test must also update: the `tests-N_passing` badge (README.md:5), the Quickstart comment
+  (`uv run pytest -q  # N tests`), the `tests/` row in the README Layout table, and the `.how`
+  line in `docs/index.html`. `grep -rn "tests-[0-9]*_passing\|[0-9]* tests" README.md docs/index.html`
+  finds all four.
 - **YOU MAY BE IN A WORKTREE, NOT THE MAIN CHECKOUT.** As of 2026-07-25 the live work is in
   `.claude/worktrees/sleepy-villani-42671c` on branch `claude/sleepy-villani-42671c`. Edits made
   there do NOT appear in `C:\Users\Anklesh\Documents\Claude_Code\Summer_Quant\README.md` until the
