@@ -9,14 +9,14 @@
 
 ### Three live deployments
 
-- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** — the graded backtest
+- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** - the graded backtest
   itself. Toggle any of eight books, switch gross against net of costs, switch India against the
   US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
   sits behind it.
-- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** — the same fixed HMM pipeline run
+- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** - the same fixed HMM pipeline run
   live on eleven markets, detection only. Which volatility regime each market is in right now, how
   long it has been there, and what that implies for position size.
-- **[The Storm Ledger](https://storm-ledger.vercel.app/)** — a
+- **[The Storm Ledger](https://storm-ledger.vercel.app/)** - a
   broadsheet reading of that same eleven-market result: the same data, written as an argument
   instead of a dashboard.
 
@@ -481,9 +481,9 @@ slopegraphs, a Crisis-simultaneity story, and a grouped instrument table. See
 [The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet).
 
 **What markets and data does it use?**
-The graded backtest uses two universes on a fixed 2015-2023 window: India (primary) — NIFTY 50
-(^NSEI), GOLDBEES.NS, LIQUIDBEES.NS, India VIX (^INDIAVIX) — and US (robustness) — SPY, TLT, GLD,
-^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from FRED where it is reachable and
+The graded backtest uses two universes on a fixed 2015-2023 window: India (primary), meaning NIFTY 50
+(^NSEI), GOLDBEES.NS, LIQUIDBEES.NS and India VIX (^INDIAVIX), and US (robustness), meaning SPY, TLT,
+GLD and ^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from FRED where it is reachable and
 a Yahoo credit-spread proxy where it is not. The Regime Monitor and Storm Ledger are separate,
 detection-only deployments that extend the same pipeline to eleven markets on a rolling window;
 see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) for that list.
@@ -491,6 +491,10 @@ see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) f
 ---
 
 ## Quickstart
+
+**New to backtesting?** [EXPLAINER.md](EXPLAINER.md) walks through every term this README uses,
+in plain English and in the order the pipeline runs them: look-ahead bias, walk-forward, Sharpe and
+drawdown, the deflated Sharpe, the paired difference test, and why episodes matter more than days.
 
 ```bash
 git clone https://github.com/DogInfantry/Signals-Before-Storms.git
@@ -599,15 +603,17 @@ parameter sweep: it reports a surface and adopts nothing.
 
 ## Figures
 
-Sixteen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
-committed under `docs/img/` for this README.
+Seventeen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
+committed as PNG under `docs/img/` for this README, six of those also as SVG for the site.
 
 `story` (the 2x2 composite this README opens with) · `returns` (raw daily returns with log-count
 marginals) · `feature_sanity` (vol_21 and VIX with COVID and 2022 shaded) · `label_profile` (the
-central finding) · `episode_bars` (effective sample size) · `weight_stack` · `regime_weights` ·
-`gross_vs_net` (compounding cost wedge) · `sharpe_forest` · `rolling_sharpe` · `sensitivity` ·
-`bic_curve` · `regime_overlay` · `equity_drawdown` · `transition_heatmap` · `macro_spread` (the
-credit spread under the same regimes, the one signed variable in the project)
+central finding) · `episode_bars` (effective sample size) · `paired_forest` (the Sharpe *difference*
+against one benchmark with its paired interval, a different question from `sharpe_forest`, which
+only asks whether a book beats zero) · `weight_stack` · `regime_weights` · `gross_vs_net`
+(compounding cost wedge) · `sharpe_forest` · `rolling_sharpe` · `sensitivity` · `bic_curve` ·
+`regime_overlay` · `equity_drawdown` · `transition_heatmap` · `macro_spread` (the credit spread
+under the same regimes, the one signed variable in the project)
 
 ## Tech stack
 

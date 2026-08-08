@@ -53,7 +53,7 @@ GitHub repository. Nothing on the page can assume the reader has read the README
 require them to run code.
 
 The underlying work is a Python research package (`src/regime_shift/`), a driver script, a rendered
-notebook and 46 tests. The reader will never execute any of it before deciding.
+notebook and 80 tests. The reader will never execute any of it before deciding.
 
 ## Capabilities and Constraints
 

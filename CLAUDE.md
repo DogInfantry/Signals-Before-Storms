@@ -682,12 +682,17 @@ uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # print
   gh repo view DogInfantry/Signals-Before-Storms --json repositoryTopics -q '.repositoryTopics'
   uv run pytest -q
   ```
-- **A TEST-COUNT CHANGE TOUCHES FOUR PLACES, and it has drifted twice.** 67 -> 78 -> 80 inside one
-  day, because guard tests landed after the docs were written. Any commit that adds or removes a
+- **A TEST-COUNT CHANGE TOUCHES FIVE PLACES, and it has drifted three times.** 67 -> 78 -> 80 inside
+  one day, because guard tests landed after the docs were written. Any commit that adds or removes a
   test must also update: the `tests-N_passing` badge (README.md:5), the Quickstart comment
-  (`uv run pytest -q  # N tests`), the `tests/` row in the README Layout table, and the `.how`
-  line in `docs/index.html`. `grep -rn "tests-[0-9]*_passing\|[0-9]* tests" README.md docs/index.html`
-  finds all four.
+  (`uv run pytest -q  # N tests`), the `tests/` row in the README Layout table, the `.how`
+  line in `docs/index.html`, and the "a rendered notebook and N tests" sentence in `PRODUCT.md`.
+  **The fifth was missed for exactly that reason: this grep used to name only the first four, so
+  `PRODUCT.md` sat at 46 while everything else said 80**, and an outside audit prompted the check
+  rather than the guard catching it. The grep IS the guard, so it has to name every file:
+  ```
+  grep -rn "tests-[0-9]*_passing\|[0-9]* tests" README.md docs/index.html PRODUCT.md
+  ```
 - **YOU MAY BE IN A WORKTREE, NOT THE MAIN CHECKOUT.** As of 2026-07-25 the live work is in
   `.claude/worktrees/sleepy-villani-42671c` on branch `claude/sleepy-villani-42671c`. Edits made
   there do NOT appear in `C:\Users\Anklesh\Documents\Claude_Code\Summer_Quant\README.md` until the
