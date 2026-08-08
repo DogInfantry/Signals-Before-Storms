@@ -18,7 +18,9 @@ dependencies = [
     "cvxpy>=1.5",
     "yfinance>=0.2.40",
     "curl_cffi>=0.7",
-    "fredapi>=0.5",
+    # No fredapi. FRED is read as a keyless CSV in data.load_macro, and the leg that actually
+    # answers on this network is data.load_credit_proxies over Yahoo. The package was declared and
+    # imported nowhere, so it was install weight and dependency surface for nothing.
     "pydantic>=2.6",
     "pyyaml>=6.0",
 ]
