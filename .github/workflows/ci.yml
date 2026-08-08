@@ -7,6 +7,13 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      # pyproject declares requires-python = ">=3.11". Testing one interpreter while promising three
+      # is a claim the artifact never checks. If 3.11 or 3.12 fails here, the honest fix is to narrow
+      # requires-python, not to delete the matrix.
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -14,8 +21,28 @@ jobs:
       - name: Sync dependencies
         # The dev group installs by default; --extra jump adds the optional second regime engine
         # so CI exercises that import path too.
-        run: uv sync --extra jump
+        run: uv sync --extra jump --python ${{ matrix.python-version }}
       - name: Ruff
         run: uv run ruff check .
       - name: Pytest
         run: uv run pytest -q
+
+  ledger-build:
+    # The Storm Ledger is a real Next.js app in this repo with a tracked lockfile, and every push to
+    # main deploys it. Nothing here used to build it, so a broken build first surfaced in production.
+    # Separate job, so a Node failure reads as a Node failure rather than as a test failure.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ledger
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ledger/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
