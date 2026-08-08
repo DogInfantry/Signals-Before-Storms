@@ -1,0 +1,37 @@
+version: 2
+
+# Three ecosystems, because this one repo really does hold three of them: a Python research package,
+# a Next.js app under ledger/, and the two workflows themselves. Monthly and grouped on purpose. A
+# solo repo that gets a pull request per patch bump stops reading them, and an unread security alert
+# is the same as no alert.
+
+updates:
+  - package-ecosystem: pip
+    # Covers pyproject.toml and uv.lock at the repo root.
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    # The Storm Ledger. ledger/package-lock.json is tracked, so this resolves.
+    directory: "/ledger"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      ledger-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    # monitor.yml runs unattended with contents: write, so a pinned action going stale there matters
+    # more than it would in a workflow that only ever reads.
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
