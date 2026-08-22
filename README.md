@@ -7,40 +7,6 @@
 [![Result](https://img.shields.io/badge/result-rigorous_negative-orange.svg)](#the-finding)
 [![Live sites](https://img.shields.io/badge/live-3_deployments-informational.svg)](#three-live-deployments)
 
-### Three live deployments
-
-```mermaid
-flowchart TD
-    R["One repository<br/>src/regime_shift, the frozen pipeline"]
-    R --> X1["tools/export_site_data.py<br/>fixed window 2015-2024"]
-    R --> X2["tools/export_monitor_data.py<br/>runs forward to today"]
-    X1 --> D1["Signals-Before-Storms<br/>docs/ · the graded backtest<br/>8 books, India vs US, gross vs net"]
-    X2 --> D2["Regime Monitor<br/>monitor/ · 11 markets, detection only"]
-    X2 --> D3["The Storm Ledger<br/>ledger/ · the same 11 markets as a broadsheet"]
-    D2 -.->|"same bytes, cmp-checked in CI"| D3
-
-    style D1 fill:#1a6ca8,color:#fff
-    style D2 fill:#c8501e,color:#fff
-    style D3 fill:#37474f,color:#fff
-```
-
-Three separate Vercel projects read three different root directories out of this one repository.
-The research site is pinned to a fixed window so its numbers cannot move under a reader; the other
-two run the same frozen model forward to the present and are rebuilt every weekday by a GitHub
-Action that [fails closed](#the-regime-monitor-the-same-model-on-eleven-markets) rather than
-publishing a payload it cannot verify.
-
-- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** - the graded backtest
-  itself. Toggle any of eight books, switch gross against net of costs, switch India against the
-  US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
-  sits behind it.
-- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** - the same fixed HMM pipeline run
-  live on eleven markets, detection only. Which volatility regime each market is in right now, how
-  long it has been there, and what that implies for position size.
-- **[The Storm Ledger](https://storm-ledger.vercel.app/)** - a
-  broadsheet reading of that same eleven-market result: the same data, written as an argument
-  instead of a dashboard.
-
 **Signals-Before-Storms is an open-source quantitative finance research engine that detects hidden
 market regimes (Bull, Bear, Crisis) with a Hidden Markov Model, then reallocates a portfolio across
 equity, cash and gold using per-regime convex optimization, validated with a leak-proof expanding
@@ -63,6 +29,45 @@ behind any regime claim is far thinner than the day count suggests, 14 episodes 
 (top right). No book separates from its benchmark once the comparison uses a paired difference test
 instead of overlapping intervals (bottom left). What the overlay does buy is drawdown: a fraction of
 the benchmark's worst loss (bottom right).
+
+### Three live deployments
+
+- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** - the graded backtest
+  itself. Toggle any of eight books, switch gross against net of costs, switch India against the
+  US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
+  sits behind it.
+- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** - the same fixed HMM pipeline run
+  live on eleven markets, detection only. Which volatility regime each market is in right now, how
+  long it has been there, and what that implies for position size.
+- **[The Storm Ledger](https://storm-ledger.vercel.app/)** - a
+  broadsheet reading of that same eleven-market result: the same data, written as an argument
+  instead of a dashboard.
+
+<details>
+<summary><b>How one repository serves three sites, and why the research one cannot move.</b></summary>
+
+```mermaid
+flowchart TD
+    R["One repository<br/>src/regime_shift, the frozen pipeline"]
+    R --> X1["tools/export_site_data.py<br/>fixed window 2015-2024"]
+    R --> X2["tools/export_monitor_data.py<br/>runs forward to today"]
+    X1 --> D1["Signals-Before-Storms<br/>docs/ · the graded backtest<br/>8 books, India vs US, gross vs net"]
+    X2 --> D2["Regime Monitor<br/>monitor/ · 11 markets, detection only"]
+    X2 --> D3["The Storm Ledger<br/>ledger/ · the same 11 markets as a broadsheet"]
+    D2 -.->|"same bytes, cmp-checked in CI"| D3
+
+    style D1 fill:#1a6ca8,color:#fff
+    style D2 fill:#c8501e,color:#fff
+    style D3 fill:#37474f,color:#fff
+```
+
+Three separate Vercel projects read three different root directories out of this one repository.
+The research site is pinned to a fixed window so its numbers cannot move under a reader; the other
+two run the same frozen model forward to the present and are rebuilt every weekday by a GitHub
+Action that [fails closed](#the-regime-monitor-the-same-model-on-eleven-markets) rather than
+publishing a payload it cannot verify.
+
+</details>
 
 ---
 
@@ -109,6 +114,9 @@ market structure.
 
 ## How it works
 
+<details>
+<summary><b>The pipeline from prices to deflated statistics, the three per-regime convex programs, and what each state is actually told to hold.</b></summary>
+
 ```mermaid
 flowchart LR
     A["Yahoo Finance<br/>NIFTY / gold / cash / VIX"] --> B["build_master<br/>log returns + vendor-error guard"]
@@ -142,9 +150,15 @@ The stance map does exactly what it was told, and the figure shows what that cos
 exceeds a quarter of the book. **The strategy is not taking too much risk, it is taking far too
 little**, which is also why volatility targeting at 10% barely binds.
 
+</details>
+
+
 ---
 
 ## Results
+
+<details>
+<summary><b>Both scorecards in full. Eight books on India and on the US, gross and net of costs, with Sortino, Calmar, turnover and deflated Sharpe.</b></summary>
 
 Every book, strategy and benchmark alike, runs through the **same cost engine** at 7.5 bps per unit
 of turnover with a one-day execution lag. A benchmark costed on different terms is not a benchmark.
@@ -201,9 +215,15 @@ India does not reappear: the best HMM drawdown is level with 60/40 and well behi
 was quietly assumed to hold on the other would be the more comfortable story. It is not the one the
 data tells.
 
+</details>
+
+
 ---
 
 ## What makes this different
+
+<details>
+<summary><b>The eight checks that changed the conclusion. Leak-proofing asserted by tests rather than claimed, episodes instead of days, paired difference tests, deflation at an honest trial count, sensitivity reported as a surface, honest benchmarks with a no-model ablation, a palette validated rather than chosen, and a vendor-data guard.</b></summary>
 
 Most public backtest repositories report a Sharpe ratio and stop. These are the checks that changed
 the conclusion here, each one implemented, tested, and documented.
@@ -331,9 +351,15 @@ then +4.61). Two bad prints in 2,193 rows. Left alone they inflate gold's return
 from 0.011 to 0.139 and poison every Indian covariance, regime fit and Sharpe. The guard rejects any
 daily |log return| above 0.5 with a loud warning, and a test pins that a -13% crash day survives it.
 
+</details>
+
+
 ---
 
 ## Regime detection in action
+
+<details>
+<summary><b>Out-of-sample labels shaded behind the NIFTY curve, and the two-line ablation that can beat the model.</b></summary>
 
 ![The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. The darkest crisis shading lines up with February 2018, Q4 2018, the COVID crash and 2022.](docs/img/india_regime_overlay.png)
 
@@ -346,9 +372,15 @@ a coin flip relabelled. The corner zeros matter too: Bull never jumps straight t
 never jumps straight to Bull, so the market always passes through the middle state. That is
 economically sensible behaviour the model was never told to produce.
 
+</details>
+
+
 ---
 
 ## The Regime Monitor: the same model on eleven markets
+
+<details>
+<summary><b>Eleven markets on the frozen pipeline, what they say about the central finding, and the two things the monitor deliberately does differently.</b></summary>
 
 **Live at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/).** A second,
 separate deployment (`monitor/`, its own Vercel project) that ships the part of this research that
@@ -425,9 +457,15 @@ Each market carries its own data-quality notes on its card rather than in a foot
 trips the `|log return| > 0.5` outlier guard once, and WTI crude loses two rows to the April 2020
 negative settlement, where a log return is undefined.
 
+</details>
+
+
 ---
 
 ## The Storm Ledger: the same eleven markets, read as a broadsheet
+
+<details>
+<summary><b>The same eleven-market result, written as an argument instead of a dashboard.</b></summary>
 
 **Live at [storm-ledger.vercel.app](https://storm-ledger.vercel.app/).**
 A third deployment (`ledger/`, Next.js, its own Vercel project) that reads the **same**
@@ -453,9 +491,15 @@ Monitor's and the Ledger's data with the one shared exporter:
 uv run python tools/export_monitor_data.py
 ```
 
+</details>
+
+
 ---
 
 ## FAQ
+
+<details>
+<summary><b>What a market regime is, what lookahead bias is and how this prevents it, whether HMM regime detection actually improves returns, and whether you can trade this.</b></summary>
 
 **What is a market regime?**
 A market regime is a persistent state of market behaviour, such as calm rising (Bull), stressed
@@ -516,9 +560,15 @@ a Yahoo credit-spread proxy where it is not. The Regime Monitor and Storm Ledger
 detection-only deployments that extend the same pipeline to eleven markets on a rolling window;
 see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) for that list.
 
+</details>
+
+
 ---
 
 ## Quickstart
+
+<details>
+<summary><b>Install with uv, run the driver, reproduce every number in this README.</b></summary>
 
 **New to backtesting?** [EXPLAINER.md](EXPLAINER.md) walks through every term this README uses,
 in plain English and in the order the pipeline runs them: look-ahead bias, walk-forward, Sharpe and
@@ -547,7 +597,12 @@ robustness section, committed with all outputs and every figure embedded. Re-exe
 uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
 ```
 
+</details>
+
 ## Layout
+
+<details>
+<summary><b>Every directory and the one thing it owns.</b></summary>
 
 There is also an interactive version of the results. `docs/` is a static site with no build step:
 `index.html` is a one-screen panel where the equity curves, drawdowns, regime bands, scorecard and
@@ -579,7 +634,12 @@ monitor/            Regime Monitor: vanilla dashboard reading data/monitor.json,
 ledger/             The Storm Ledger: Next.js broadsheet, same JSON via public/data/monitor.json
 ```
 
+</details>
+
 ## Why the key decisions
+
+<details>
+<summary><b>Why India is the primary universe, why a cash sleeve instead of a bond sleeve, why three states, and why Apache-2.0.</b></summary>
 
 - **3 regimes (Bull / Bear / Crisis):** chosen to match the economic states allocated against, then
   checked with a BIC sweep rather than assumed. The sweep supports it on the graded Indian universe
@@ -615,7 +675,12 @@ ledger/             The Storm Ledger: Next.js broadsheet, same JSON via public/d
   NIFTY and would judge a defensive strategy against a pure-equity book at four times its volatility.
 - **Benchmarks share the cost engine:** every book runs through the same `run_book` loop.
 
+</details>
+
 ## Reproducibility
+
+<details>
+<summary><b>Seeds, pinned versions, and exactly which parts are deterministic.</b></summary>
 
 Seeds are fixed in `config/config.yaml`. Downloaded data is cached under `data/` so reruns are
 offline and deterministic.
@@ -629,7 +694,12 @@ The deflated Sharpe is quoted at 7 trials throughout. The cash-leg 60/40 and the
 benchmark and a bug fix, not searched variants, so neither moves that count. Neither does the
 parameter sweep: it reports a surface and adopts nothing.
 
+</details>
+
 ## Figures
+
+<details>
+<summary><b>Seventeen per universe, and what each one is for.</b></summary>
 
 Seventeen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
 committed as PNG under `docs/img/` for this README, six of those also as SVG for the site.
@@ -643,11 +713,18 @@ only asks whether a book beats zero) · `weight_stack` · `regime_weights` · `g
 `regime_overlay` · `equity_drawdown` · `transition_heatmap` · `macro_spread` (the credit spread
 under the same regimes, the one signed variable in the project)
 
+</details>
+
 ## Tech stack
+
+<details>
+<summary><b>The dependency list.</b></summary>
 
 `Python 3.11+` · `hmmlearn` (Gaussian HMM) · `cvxpy` (convex optimization) · `pandas` · `numpy` ·
 `scipy` · `scikit-learn` · `yfinance` (market data) · `matplotlib` · `jumpmodels` (optional second
 regime engine) · `pydantic` (typed config) · `uv` (packaging) · `pytest` · `ruff`
+
+</details>
 
 ## About this project
 
