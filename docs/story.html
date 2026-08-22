@@ -7,9 +7,16 @@ reports a Sharpe and stops.
 
 OWN-WORLD: Inherited from src/regime_shift/style.py, the module that draws every figure here:
 surface #fcfcfb, ink #1c1c1c / #5c5c5c / #8a8a8a, hairline rules #e4e4e1, #1a6ca8 for action,
-and the ordinal regime ramp #e8b84b / #d2691e / #8f1d14 used only where regimes are named. The
-component language is a ruled research log: margin rule, numbered entries, an index of entries,
-marginal notes, tabular figures. No card grid, no downloaded typeface.
+and the ordinal regime ramp #b8860b / #9e4310 / #6b1210 used only where regimes are named. That
+ramp is the CURRENT one. This contract used to name #e8b84b / #d2691e / #8f1d14, retired in
+54e4daa after tools/validate_palette.py measured its light end at 1.80:1 against the surface,
+under the 3:1 floor. It rendered nowhere, but a session reading this file would have trusted it.
+The component language is a ruled research log: margin rule, numbered entries, an index of
+entries, marginal notes, tabular figures. No card grid, no downloaded typeface.
+
+LIVE: the plates below are drawn by story.js from data/*.json, the same export the landing panel
+reads, so a figure here and the same figure there cannot disagree. Each mount still contains its
+committed static plate, so JavaScript off or fetch blocked leaves the page exactly as it was.
 
 STORY: The reader learns the overlay fails, learns why (volatility states carry no direction),
 sees four rescues fail on pre-registered terms, and watches the author retract his own apparent
@@ -38,6 +45,7 @@ adopted, seed key 855a3e8b.
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<script type="module" defer src="story.js"></script>
 </head>
 <body>
 
@@ -47,6 +55,13 @@ adopted, seed key 855a3e8b.
     <span class="masthead__id"><a href="index.html">Signals-Before-Storms</a></span>
     <span class="masthead__meta">research log, in the order it happened</span>
     <span class="masthead__meta">India 2016-07-22 to 2023-12-29, n = 1,814</span>
+    <!-- The panel linked both companion sites and this page linked neither, so a reader who
+         arrived here first could not reach them at all. -->
+    <nav class="masthead__nav" aria-label="Companion sites">
+      <a href="https://regime-monitor-lyart.vercel.app/">Live monitor</a>
+      <a href="https://storm-ledger.vercel.app/">The Ledger</a>
+      <a href="https://github.com/DogInfantry/Signals-Before-Storms">Repository</a>
+    </nav>
   </header>
 
   <!-- ================= COVER ================= -->
@@ -174,6 +189,23 @@ adopted, seed key 855a3e8b.
     0.98, so the regimes persist rather than flickering. The corner entries are zero: Bull never
     jumps straight to Crisis and Crisis never jumps straight to Bull, so the market always passes
     through the middle state. Nothing in the fit asked for that.</p>
+
+    <!-- Both of these were already in data/india.json and nothing drew them. The paragraph above
+         asserts the diagonal and the corner zeros; here they are, so the reader can check. -->
+    <div class="plate-pair">
+      <figure class="plate">
+        <div class="live" data-fig="transition" data-market="india"></div>
+        <figcaption><b>Persistence, and the two corners that stay empty.</b> Read a row: given
+        today's state, where tomorrow lands. The market cannot skip the middle state in either
+        direction, which nothing in the fit asked for.</figcaption>
+      </figure>
+      <figure class="plate">
+        <div class="live" data-fig="dwell" data-market="india"></div>
+        <figcaption><b>How long a state lasts, and how much of the record it owns.</b> Crisis is
+        both the shortest-lived and the rarest, which is the first hint that its sample is thinner
+        than its day count suggests.</figcaption>
+      </figure>
+    </div>
   </section>
 
   <!-- ================= 02 ================= -->
@@ -212,8 +244,15 @@ adopted, seed key 855a3e8b.
     rebound. The model was asked for regimes and it delivered regimes. They are the wrong kind.</p>
 
     <figure class="plate">
-      <img src="img/india_label_profile.svg" loading="lazy"
+      <!-- THE BEAT. Drawn live, and replayed in two stages when it first comes into view: the
+           volatility bars rise and land monotone, the model doing exactly the job it was given,
+           and only then do the return bars rise and land backwards. That sequence is the entire
+           thesis of this project, and it used to arrive as a flat image. Motion off jumps to the
+           finished chart, which loses nothing. -->
+      <div class="live" data-fig="labels" data-market="india">
+        <img src="img/india_label_profile.svg" loading="lazy"
              alt="Bars of next-day annualised return and annualised volatility for each regime label on India. Volatility climbs steeply from 11.2 percent at label 0 to 31.7 percent at label 2. Return also climbs, from 10.2 percent to 18.4 percent, against the expected slope drawn beside it.">
+      </div>
       <figcaption><b>The measured slope beside the expected one.</b> The volatility bars climb the
       way a risk-ordered label should. The return bars climb too, which is exactly backwards from
       what the stance map is betting on.</figcaption>
@@ -258,8 +297,10 @@ adopted, seed key 855a3e8b.
     </div>
 
     <figure class="plate">
-      <img src="img/india_regime_weights.svg" loading="lazy"
+      <div class="live" data-fig="weights" data-market="india">
+        <img src="img/india_regime_weights.svg" loading="lazy"
              alt="Mean portfolio weight per asset in each regime. Equity never exceeds roughly a quarter of the book in any regime, with the remainder in cash and gold, and the crisis regime holds the least equity of all.">
+      </div>
       <figcaption><b>Why volatility targeting had nothing to bind on.</b> The stance map does exactly
       what it was told, and this is the cost: equity never exceeds a quarter of the book in any
       regime. The overlay is not too aggressive, it is permanently defensive.</figcaption>
@@ -309,10 +350,14 @@ adopted, seed key 855a3e8b.
     counting on both universes.</p>
 
     <figure class="plate">
-      <img src="img/india_episode_bars.svg" loading="lazy"
+      <div class="live" data-fig="episodes" data-market="india">
+        <img src="img/india_episode_bars.svg" loading="lazy"
              alt="Each crisis episode drawn as its own bar, ordered by length. One long COVID episode dominates the chart and the remaining thirteen episodes are much shorter, several of them positive.">
-      <figcaption><b>Fourteen bars, not 261 days.</b> One episode dominates the record. Any claim
-      resting on this label rests on a sample of fourteen, and mostly on one of them.</figcaption>
+      </div>
+      <figcaption><b>Fourteen episodes, not 261 days.</b> The open dot is the label's return over
+      every episode; the filled dot is the same return with the single longest episode dropped.
+      Crisis has the fewest episodes and moves furthest, from +18.4% to +53.6%. Any claim resting
+      on this label rests on a sample of fourteen, and mostly on one of them.</figcaption>
     </figure>
   </section>
 
@@ -344,6 +389,21 @@ adopted, seed key 855a3e8b.
         </tbody>
       </table>
     </div>
+
+    <!-- The table above lists three books. The forest draws all of them against either benchmark,
+         which is the version of this claim a reader can check rather than take on trust. -->
+    <figure class="plate">
+      <div class="controls controls--inline" role="group" aria-label="Benchmark">
+        <span class="switch">
+          <button type="button" data-bench="60_40" aria-pressed="true">vs 60/40</button>
+          <button type="button" data-bench="equal_weight" aria-pressed="false">vs equal weight</button>
+        </span>
+      </div>
+      <div class="live" data-fig="paired" data-market="india"></div>
+      <figcaption><b>Every book, against either benchmark.</b> The dot is the Sharpe difference and
+      the rule is its paired 95% interval. Every one of them crosses the zero line, which is the
+      claim: indistinguishable, not beaten.</figcaption>
+    </figure>
 
     <p><strong>Every interval spans zero, on both universes.</strong> The "it is all noise" reading
     survives, and it is now earned rather than assumed. It also sharpens one claim that used to be
@@ -401,8 +461,11 @@ adopted, seed key 855a3e8b.
     0.958 against 0.542.</p>
 
     <figure class="plate">
-      <img src="img/india_regime_overlay.png" width="1434" height="636" loading="lazy"
+      <div class="live" data-fig="overlay" data-market="india" data-tall="1"
+           data-alt="The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. Darker crisis shading lines up with February 2018, the fourth quarter of 2018, the COVID crash and 2022.">
+        <img src="img/india_regime_overlay.png" width="1434" height="636" loading="lazy"
              alt="The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. Darker crisis shading lines up with February 2018, the fourth quarter of 2018, the COVID crash and 2022.">
+      </div>
       <figcaption><b>Out-of-sample labels, no future information.</b> The causal filter independently
       flags February 2018, Q4 2018, COVID and 2022. The states are real. That was never the part
       that failed.</figcaption>
@@ -417,11 +480,26 @@ adopted, seed key 855a3e8b.
     engine at 7.5 basis points per unit of turnover with a one-day execution lag. A benchmark costed
     on different terms is not a benchmark.</p>
 
-    <p class="table-caption" id="cap-india">India, the primary universe. Out-of-sample 2016-07-22 to
+    <!-- One live sortable table for the chosen universe, with both hand-authored tables kept
+         underneath as the no-JavaScript fallback. Live is the safer default here rather than the
+         riskier one: the static tables were typed out of a run, and CLAUDE.md already records one
+         interval in the docs that has since drifted from what the code produces. The live table
+         reads the export the scorecard itself is printed from, so it cannot drift at all. -->
+    <div class="controls controls--inline">
+      <span class="switch" role="group" aria-label="Universe">
+        <button type="button" data-score-market="india" aria-pressed="true">India</button>
+        <button type="button" data-score-market="us" aria-pressed="false">US</button>
+      </span>
+      <span class="controls__note" data-oos-story>loading</span>
+    </div>
+
+    <div class="live live--table" data-fig="scorecard"></div>
+
+    <p class="table-caption js-hide" id="cap-india">India, the primary universe. Out-of-sample 2016-07-22 to
     2023-12-29, n = 1,814. Sharpe is measured against the 3.79% risk-free rate the cash sleeve
     actually paid, because scoring against zero would hand every defensive book a free Sharpe for
     holding cash. Benchmark rows are set in italic.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="India scorecard, scrollable table" aria-describedby="cap-india">
+    <div class="scroll js-hide" tabindex="0" role="region" aria-label="India scorecard, scrollable table" aria-describedby="cap-india">
       <table>
         <thead>
           <tr><th scope="col">Book</th><th scope="col">Sharpe (net)</th><th scope="col">Sharpe (gross)</th><th scope="col">Sortino</th><th scope="col">Max drawdown</th><th scope="col">Calmar</th><th scope="col">Turnover/yr</th></tr>
@@ -449,16 +527,32 @@ adopted, seed key 855a3e8b.
     a mandate question, not a statistical one.</p>
 
     <figure class="plate">
-      <img src="img/india_equity_drawdown.png" width="1852" height="851" loading="lazy"
+      <!-- Two charts on one date axis, so the cursor is shared: hovering either one moves the
+           crosshair on both, and the reader is comparing the same day rather than two guesses at
+           it. Pinned to India, matching the paragraph above; the market switch below governs the
+           scorecard only. -->
+      <div class="controls controls--inline">
+        <span class="switch" role="group" aria-label="Transaction costs">
+          <button type="button" data-story-cost="net" aria-pressed="true">Net of costs</button>
+          <button type="button" data-story-cost="gross" aria-pressed="false">Gross</button>
+        </span>
+      </div>
+      <div id="story-books" class="chips" role="group" aria-label="Books to plot"></div>
+      <div class="live" data-fig="curves" data-market="india" data-tall="1"
+           data-alt="Growth of one unit for each selected book, with the walk-forward regime path shaded behind it."></div>
+      <div class="live" data-fig="drawdowns" data-market="india"
+           data-alt="Drawdown from running peak for each selected book.">
+        <img src="img/india_equity_drawdown.png" width="1852" height="851" loading="lazy"
              alt="Equity curves for every book on top and their drawdowns underneath. The 60 40 book climbs highest and falls furthest, dropping about 24 percent. The HMM books track lower and flatter with a worst drawdown near 6 percent.">
+      </div>
       <figcaption><b>The trade, drawn.</b> The benchmark ends higher. The overlay never falls far.
-      Those are the same fact seen twice.</figcaption>
+      Those are the same fact seen twice. Hover either chart and both cursors move together.</figcaption>
     </figure>
 
-    <p class="table-caption" id="cap-us">US, the robustness universe. Out-of-sample 2016-07-05 to
+    <p class="table-caption js-hide" id="cap-us">US, the robustness universe. Out-of-sample 2016-07-05 to
     2023-12-29, n = 1,886, risk-free rate zero, with a real bond sleeve. Benchmark rows are set in
     italic.</p>
-    <div class="scroll" tabindex="0" role="region" aria-label="US robustness scorecard, scrollable table" aria-describedby="cap-us">
+    <div class="scroll js-hide" tabindex="0" role="region" aria-label="US robustness scorecard, scrollable table" aria-describedby="cap-us">
       <table>
         <thead>
           <tr><th scope="col">Book</th><th scope="col">Sharpe (net)</th><th scope="col">Max drawdown</th><th scope="col">Calmar</th><th scope="col">Turnover/yr</th></tr>

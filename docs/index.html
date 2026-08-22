@@ -35,7 +35,7 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
-<script defer src="site.js"></script>
+<script type="module" defer src="site.js"></script>
 </head>
 <body class="panel">
 
@@ -145,6 +145,22 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
         India Sharpe table and is still not adopted, because it failed the test it was given.
       </li>
     </ol>
+
+    <!-- The two figures the exporter had already been computing and nothing drew. Each one is
+         here because the prose above already makes its claim: fact 2 asserts the episode count
+         and the ex-largest swing, and the diagnosis rests on a book that holds almost no equity.
+         A claim with a figure beside it is cheaper to check than a claim without one. -->
+    <div class="pair">
+      <figure class="plot">
+        <figcaption><b>Drop the longest episode.</b> Fewest episodes, furthest move.</figcaption>
+        <div id="chart-episodes"></div>
+      </figure>
+      <figure class="plot">
+        <figcaption><b>What it actually holds.</b> Not too risky. Far too de-risked.</figcaption>
+        <div id="chart-weights"></div>
+      </figure>
+    </div>
+
     <p>
       One apparent discovery was retracted the same day it was written up, by counting episodes.
       <a href="story.html">The full log tells it in the order it happened</a>, including the
