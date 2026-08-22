@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: >-
+  If you use this repository, its figures, or its finding in a paper, post, product, model or
+  presentation, please cite it. Attribution is a condition of the Apache-2.0 license (Section 4),
+  not a courtesy.
+title: "Signals-Before-Storms: a macro-aware tactical asset allocation engine"
+abstract: >-
+  An open-source quantitative finance research engine that detects hidden market regimes (Bull,
+  Bear, Crisis) with a Hidden Markov Model, then reallocates across equity, cash and gold using a
+  per-regime convex program, validated with a leak-proof expanding walk-forward backtest that
+  charges transaction costs to every book alike. Published as a rigorous negative result with a
+  diagnosis: the states the model finds encode volatility, not direction, and realized volatility
+  is symmetric in sign, so it cannot tell a crash from a rebound. No book separates from a static
+  60/40 or equal-weight benchmark once the comparison uses a paired difference test. The overlay
+  does cut maximum drawdown by roughly two thirds on the Indian universe. The repository documents
+  four rescue attempts that failed on pre-registered criteria, and one apparent discovery that the
+  author retracted the same day by counting episodes rather than days.
+type: software
+authors:
+  - family-names: Rawat
+    given-names: Anklesh
+    alias: DogInfantry
+repository-code: "https://github.com/DogInfantry/Signals-Before-Storms"
+url: "https://signals-before-storms.vercel.app"
+license: Apache-2.0
+date-released: "2026-08-22"
+keywords:
+  - hidden markov model
+  - regime detection
+  - regime switching
+  - tactical asset allocation
+  - portfolio optimization
+  - convex optimization
+  - walk-forward validation
+  - lookahead bias
+  - deflated sharpe ratio
+  - stationary bootstrap
+  - backtesting
+  - quantitative finance
+  - negative result
+  - reproducible research
+  - python

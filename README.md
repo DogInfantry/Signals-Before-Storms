@@ -9,6 +9,27 @@
 
 ### Three live deployments
 
+```mermaid
+flowchart TD
+    R["One repository<br/>src/regime_shift, the frozen pipeline"]
+    R --> X1["tools/export_site_data.py<br/>fixed window 2015-2024"]
+    R --> X2["tools/export_monitor_data.py<br/>runs forward to today"]
+    X1 --> D1["Signals-Before-Storms<br/>docs/ · the graded backtest<br/>8 books, India vs US, gross vs net"]
+    X2 --> D2["Regime Monitor<br/>monitor/ · 11 markets, detection only"]
+    X2 --> D3["The Storm Ledger<br/>ledger/ · the same 11 markets as a broadsheet"]
+    D2 -.->|"same bytes, cmp-checked in CI"| D3
+
+    style D1 fill:#1a6ca8,color:#fff
+    style D2 fill:#c8501e,color:#fff
+    style D3 fill:#37474f,color:#fff
+```
+
+Three separate Vercel projects read three different root directories out of this one repository.
+The research site is pinned to a fixed window so its numbers cannot move under a reader; the other
+two run the same frozen model forward to the present and are rebuilt every weekday by a GitHub
+Action that [fails closed](#the-regime-monitor-the-same-model-on-eleven-markets) rather than
+publishing a payload it cannot verify.
+
 - **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** - the graded backtest
   itself. Toggle any of eight books, switch gross against net of costs, switch India against the
   US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
@@ -26,6 +47,7 @@ equity, cash and gold using per-regime convex optimization, validated with a lea
 walk-forward backtest.** It runs on Indian markets (NIFTY 50, GOLDBEES, LIQUIDBEES, India VIX) as
 the primary universe and US markets (SPY, TLT, GLD, VIX) as an out-of-sample robustness check.
 
+> [!IMPORTANT]
 > **The honest headline: the regime overlay never separates from a simple 60/40 or equal-weight
 > portfolio on risk-adjusted return.** Its Sharpe edge on India sits inside the noise, with every
 > paired confidence interval against both benchmarks spanning zero. It does cut maximum drawdown by
@@ -33,7 +55,7 @@ the primary universe and US markets (SPY, TLT, GLD, VIX) as an out-of-sample rob
 > with a diagnosis*, not as a winning strategy, and it documents its own retracted finding. Full
 > reasoning in [The finding](#the-finding).
 
-![The whole result in four panels](docs/img/india_story.png)
+![Four panels. Top left, next-day annualised return rises with the volatility label while volatility also rises, so the return ordering runs the wrong way. Top right, only fourteen crisis episodes stand behind two hundred and sixty-one days. Bottom left, paired Sharpe differences against each benchmark, every interval crossing zero. Bottom right, the overlay ends lower than the benchmark but never falls far.](docs/img/india_story.png)
 
 **The entire argument, in reading order.** The model does what it was asked and finds real,
 persistent states, but those states predict *variance*, not *direction* (top left). The evidence
@@ -64,7 +86,7 @@ the benchmark's worst loss (bottom right).
 Measured at the lag the strategy actually trades (regime label known at the close of day *t*,
 return earned on day *t+1*):
 
-![Next-day return and volatility by regime label](docs/img/india_label_profile.png)
+![Bars of next-day annualised return and annualised volatility per regime on India. Volatility climbs 11.2 to 14.9 to 31.7 percent, exactly as a risk-ordered label should. Return climbs too, 10.2 to 15.0 to 18.4 percent, which is backwards.](docs/img/india_label_profile.png)
 
 | Regime label | India days | India ann. return | India ann. vol | US days | US ann. return | US ann. vol |
 |---|---|---|---|---|---|---|
@@ -100,8 +122,8 @@ flowchart LR
     I --> J["run_book<br/>1-day lag + 7.5 bps cost"]
     J --> K["Deflated Sharpe<br/>paired bootstrap CI<br/>episode counts"]
 
-    style G fill:#c62828,color:#fff
-    style J fill:#2e7d32,color:#fff
+    style G fill:#c8501e,color:#fff
+    style J fill:#1a6ca8,color:#fff
     style K fill:#37474f,color:#fff
 ```
 
@@ -114,7 +136,7 @@ invested, weight-capped):
 | 1 Bear | Minimize variance | Stressed, preserve capital |
 | 2 Crisis | Minimize variance + hard equity cap | Violent, de-risk hard |
 
-![Mean portfolio weight per regime](docs/img/india_regime_weights.png)
+![Mean portfolio weight per sleeve in each regime. Equity is 20 percent in Bull, 18 in Bear and 9 in Crisis, the rest in cash and gold, so the book is permanently defensive rather than too aggressive.](docs/img/india_regime_weights.png)
 
 The stance map does exactly what it was told, and the figure shows what that costs: equity never
 exceeds a quarter of the book. **The strategy is not taking too much risk, it is taking far too
@@ -135,16 +157,16 @@ against rf = 0 would hand every defensive book a free Sharpe for simply holding 
 
 | Strategy | Ann. return | Ann. vol | Sharpe (net) | Sharpe (gross) | Sortino | Max DD | Calmar | Turnover/yr | DSR |
 |---|---|---|---|---|---|---|---|---|---|
-| HMM + drawdown feature | 7.5% | 4.0% | 0.877 | 0.896 | 1.291 | -6.4% | 1.169 | 0.99x | 0.805 |
-| **Vol-threshold rule (ablation)** | 7.5% | 4.2% | 0.848 | 0.863 | 1.244 | -6.5% | 1.165 | 0.88x | 0.783 |
-| Jump Model regimes | 7.6% | 4.3% | 0.829 | 0.833 | 1.204 | -7.3% | 1.038 | **0.24x** | 0.767 |
-| **HMM, regime-conditional** | 7.2% | 3.9% | 0.824 | 0.841 | 1.211 | **-6.2%** | **1.161** | 0.87x | 0.764 |
-| HMM + volatility targeting | 7.2% | 3.9% | 0.824 | 0.841 | 1.211 | -6.2% | 1.161 | 0.87x | 0.764 |
+| HMM + drawdown feature | 7.5% | 4.0% | 0.877 | 0.895 | 1.291 | -6.4% | 1.169 | 0.99x | 0.805 |
+| **Vol-threshold rule (ablation)** | 7.5% | 4.2% | 0.848 | 0.864 | 1.244 | -6.5% | 1.165 | 0.88x | 0.783 |
+| Jump Model regimes | 7.5% | 4.3% | 0.829 | 0.833 | 1.204 | -7.3% | 1.038 | **0.24x** | 0.767 |
+| **HMM, regime-conditional** | 7.2% | 3.9% | 0.824 | 0.841 | 1.210 | **-6.2%** | **1.161** | 0.87x | 0.764 |
+| HMM + volatility targeting | 7.2% | 3.9% | 0.824 | 0.841 | 1.210 | -6.2% | 1.161 | 0.87x | 0.764 |
 | Equal weight | 9.5% | 6.8% | 0.815 | 0.819 | 1.167 | -15.2% | 0.625 | 0.41x | 0.752 |
-| HMM, unconditional | 6.9% | 3.9% | 0.748 | 0.758 | 1.097 | -6.2% | 1.103 | 0.50x | 0.697 |
-| Static 60/40 (equity/cash) | 9.8% | 10.0% | 0.604 | 0.607 | 0.827 | -23.7% | 0.413 | 0.36x | 0.552 |
+| HMM, unconditional | 6.9% | 3.9% | 0.748 | 0.758 | 1.097 | -6.2% | 1.103 | 0.50x | 0.698 |
+| Static 60/40 (equity/cash) | 9.8% | 10.1% | 0.604 | 0.607 | 0.827 | -23.7% | 0.413 | 0.36x | 0.552 |
 
-![Equity curves and drawdowns, every book](docs/img/india_equity_drawdown.png)
+![Equity curves for every book above their drawdowns. The 60/40 book climbs highest and falls furthest at about 24 percent. The HMM books track lower and flatter with a worst drawdown near 6 percent.](docs/img/india_equity_drawdown.png)
 
 **Read the Sharpe column and the strategy is unremarkable.** No book here is statistically
 distinguishable from either benchmark (established by a paired difference test, below). **Read max
@@ -164,11 +186,11 @@ SPY / TLT / GLD / ^VIX, out-of-sample 2016-07-05 to 2023-12-29, n = 1,886, rf = 
 | Strategy | Ann. return | Ann. vol | Sharpe (net) | Sortino | Max DD | Calmar | Turnover/yr | DSR |
 |---|---|---|---|---|---|---|---|---|
 | **Vol-threshold rule (ablation)** | **9.8%** | 10.3% | **0.958** | 1.369 | **-21.9%** | **0.446** | 3.61x | **0.863** |
-| Static 60/40 | 7.5% | 11.5% | 0.690 | 0.956 | -27.6% | 0.273 | 0.41x | 0.643 |
+| Static 60/40 | 7.5% | 11.5% | 0.690 | 0.956 | -27.6% | 0.273 | 0.41x | 0.642 |
 | Jump Model regimes | 6.6% | 10.1% | 0.682 | 0.962 | -25.1% | 0.262 | **1.46x** | 0.636 |
 | Equal weight | 5.9% | 9.6% | 0.650 | 0.921 | -23.0% | 0.258 | 0.42x | 0.602 |
-| HMM + drawdown feature | 5.4% | 9.6% | 0.590 | 0.840 | -28.0% | 0.191 | 3.88x | 0.538 |
-| HMM + volatility targeting | 5.0% | 9.4% | 0.562 | 0.793 | -27.3% | 0.182 | 4.10x | 0.508 |
+| HMM + drawdown feature | 5.4% | 9.6% | 0.590 | 0.840 | -28.0% | 0.192 | 3.87x | 0.538 |
+| HMM + volatility targeting | 5.0% | 9.4% | 0.562 | 0.792 | -27.3% | 0.182 | 4.10x | 0.508 |
 | HMM, regime-conditional | 4.9% | 9.6% | 0.542 | 0.765 | -28.7% | 0.170 | 4.19x | 0.486 |
 | HMM, unconditional | 4.8% | 9.6% | 0.535 | 0.758 | -27.4% | 0.174 | 2.74x | 0.478 |
 
@@ -206,7 +228,7 @@ each pinned by a unit test:
 **`days` is not a sample size.** A claim about a regime is supported by how many times that regime
 occurred, not how many rows it spanned.
 
-![Crisis episodes, one bar each](docs/img/india_episode_bars.png)
+![Each crisis episode drawn as its own bar, ordered by length. One long COVID episode dominates and the remaining thirteen are far shorter, several of them positive.](docs/img/india_episode_bars.png)
 
 | Label | India days | India **episodes** | Ann. return | Ex-largest episode |
 |---|---|---|---|---|
@@ -256,7 +278,7 @@ data (Politis-White), not guessed.
 
 ### 5. Parameter sensitivity reported as a surface
 
-![Sharpe against each swept parameter](docs/img/india_sensitivity.png)
+![Sharpe plotted against each swept parameter with the shipped default marked. The cost panel is nearly flat: Sharpe moves only 0.841 to 0.785 from free trading to 25 basis points.](docs/img/india_sensitivity.png)
 
 Every knob was a single unexamined value until it was swept. The sweep reports the whole surface and
 **adopts nothing**, because picking the best cell would be a search and would owe the deflated
@@ -313,7 +335,7 @@ daily |log return| above 0.5 with a loud warning, and a test pins that a -13% cr
 
 ## Regime detection in action
 
-![Walk-forward out-of-sample regimes shaded behind NIFTY](docs/img/india_regime_overlay.png)
+![The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. The darkest crisis shading lines up with February 2018, Q4 2018, the COVID crash and 2022.](docs/img/india_regime_overlay.png)
 
 Out-of-sample regime labels shaded behind the NIFTY equity curve. Nothing here had access to its own
 future. With no future information the causal filter independently flags February 2018, Q4 2018,
@@ -356,7 +378,13 @@ means crisis for that market rather than one global state pasted across eleven r
 Running the frozen pipeline on new tickers is out-of-sample generalization, and it **sharpened the
 negative result rather than confirming it**:
 
-| Claim | Result across 11 markets |
+> [!NOTE]
+> These five counts are read off `monitor/data/monitor.json`, which a scheduled GitHub Action
+> refreshes every weekday, so they can move. **Measured 2026-08-22**, newest completed session
+> 2026-08-21. Re-check any figure here with
+> `uv run python -c "import json;d=json.load(open('monitor/data/monitor.json'));print(d['replication'])"`.
+
+| Claim | Result across 11 markets (2026-08-22) |
 |---|---|
 | Realized volatility rises with the state | **11 of 11** |
 | Return ordering strictly backwards | 2 of 11 (SPY, gold) |
@@ -621,6 +649,40 @@ under the same regimes, the one signed variable in the project)
 `scipy` · `scikit-learn` · `yfinance` (market data) · `matplotlib` · `jumpmodels` (optional second
 regime engine) · `pydantic` (typed config) · `uv` (packaging) · `pytest` · `ruff`
 
+## About this project
+
+I am **Anklesh Rawat** ([@DogInfantry](https://github.com/DogInfantry)). I started this expecting
+to ship a regime-switching strategy that beat a 60/40. It does not, and working out *why* turned
+out to be worth more than the win would have been.
+
+The honest version of what happened: the model found real states. They are persistent, they line up
+with February 2018, COVID and 2022 without ever being shown the future, and the volatility ordering
+holds on all eleven markets I have since thrown at it. But they are **volatility** states, and
+volatility is symmetric in sign. It rises in a crash and rises again in the rebound. So de-risking
+on the crisis label sells the recovery just as reliably as it dodges the fall.
+
+I tried four times to rescue it. Each attempt had its success criterion written down *before* the
+result was computed, and all four failed on their own terms. One of them, a drawdown feature, now
+sits at the top of the India table, and I still do not count it as a win, because writing the test
+down first only means something if you honour it when it goes against you.
+
+Then there is the retraction. For a few hours I believed I had found a genuinely directional state:
+a Jump Model crisis label reading -17.1% annualised over 94 days. Counting episodes instead of days
+killed it the same afternoon. Ninety-four days, but only **two** episodes, one of them positive, and
+every one of those days already sat inside the HMM's own crisis label. It is written up in full
+rather than quietly deleted, because a research log that only records the things that worked is a
+brochure.
+
+If you take one thing from this repository, take the habit rather than the model: **before you
+believe any regime result, count the episodes and drop the largest one.** That single check
+retracted my own best finding.
+
+Questions, corrections, or a defect you can show me in the artifacts are all genuinely welcome via
+[an issue](https://github.com/DogInfantry/Signals-Before-Storms/issues). Being shown wrong with
+evidence is the whole point of publishing it this way.
+
+---
+
 ## License and attribution
 
 Apache License 2.0. See [LICENSE](LICENSE).
@@ -633,14 +695,18 @@ it as:
 > Anklesh Rawat, "Signals-Before-Storms: a macro-aware tactical asset allocation engine", 2026.
 > https://github.com/DogInfantry/Signals-Before-Storms
 
+Or use the **Cite this repository** button in the sidebar, which reads
+[CITATION.cff](CITATION.cff) and will hand you BibTeX or APA directly.
+
 Market data is fetched at runtime from Yahoo Finance and FRED, is subject to their terms, and is not
 redistributed here.
 
 ## Disclaimer
 
-Research and educational code. Nothing here is investment advice, and none of these results are a
-recommendation to trade. The headline finding is that the strategy does not separate from simple
-benchmarks on risk-adjusted return, and underperforms them outright on the US universe.
+> [!WARNING]
+> Research and educational code. Nothing here is investment advice, and none of these results are a
+> recommendation to trade. The headline finding is that the strategy does not separate from simple
+> benchmarks on risk-adjusted return, and underperforms them outright on the US universe.
 
 ---
 

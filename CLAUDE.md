@@ -687,11 +687,13 @@ uv run python tools/regime_alert.py OLD.json monitor/data/monitor.json   # print
   test must also update: the `tests-N_passing` badge (README.md:5), the Quickstart comment
   (`uv run pytest -q  # N tests`), the `tests/` row in the README Layout table, the `.how`
   line in `docs/index.html`, and the "a rendered notebook and N tests" sentence in `PRODUCT.md`.
-  **The fifth was missed for exactly that reason: this grep used to name only the first four, so
-  `PRODUCT.md` sat at 46 while everything else said 80**, and an outside audit prompted the check
+  **The fifth was missed twice. First the grep named only four files. Then, with all five named,
+  `PRODUCT.md` STILL sat at 46 until 2026-08-22, because the old pattern `[0-9]* tests` cannot
+  match "46 passing tests": the word "passing" sits between the number and the noun. The pattern
+  above is the corrected one and it does match**, and an outside audit prompted the check
   rather than the guard catching it. The grep IS the guard, so it has to name every file:
   ```
-  grep -rn "tests-[0-9]*_passing\|[0-9]* tests" README.md docs/index.html PRODUCT.md
+  grep -rniE "tests-[0-9]+_passing|[0-9]+ (passing )?tests" README.md docs/index.html PRODUCT.md
   ```
 - **YOU MAY BE IN A WORKTREE, NOT THE MAIN CHECKOUT.** As of 2026-07-25 the live work is in
   `.claude/worktrees/sleepy-villani-42671c` on branch `claude/sleepy-villani-42671c`. Edits made

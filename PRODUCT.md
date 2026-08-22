@@ -96,7 +96,7 @@ Real, already produced, and safe to show:
   2016-07-22 to 2023-12-29 (n = 1,814) and US 2016-07-05 to 2023-12-29 (n = 1,886).
 - The label profile table, the episode table with its ex-largest column, the paired difference
   intervals, and the deflated Sharpe at a stated 7 trials.
-- 46 passing tests, ruff clean, CI green, `LICENSE` and `NOTICE`.
+- 80 passing tests (4 skipped), ruff clean, CI green, `LICENSE` and `NOTICE`.
 
 **Absences that must never be filled in by invention:**
 
