@@ -89,8 +89,11 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Authored as the repo owner, not github-actions[bot], so every commit on main carries
+          # one identity. The commit MESSAGE is what marks this as automated; these commits show
+          # as unverified because the runner holds no signing key.
+          git config user.name "DogInfantry"
+          git config user.email "ankleshrawat5@gmail.com"
           git add monitor/data/monitor.json ledger/public/data/monitor.json
           git commit -m "Refresh the regime monitor through $(date -u +%Y-%m-%d)"
           git push
