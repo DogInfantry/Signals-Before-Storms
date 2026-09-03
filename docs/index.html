@@ -36,6 +36,25 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <script type="module" defer src="site.js"></script>
+<!-- site.js is a MODULE, and module scripts are blocked on the file:// origin, so boot()'s own
+     "serve this over HTTP" branch cannot run there: the load fails a layer earlier than the fetch
+     that branch guards, and the reader gets empty tiles and empty charts with no explanation. This
+     script is deliberately NOT a module, so it is the one thing that still executes. -->
+<script>
+  if (location.protocol === "file:") {
+    document.addEventListener("DOMContentLoaded", function () {
+      var anchor = document.getElementById("stats");
+      if (!anchor) return;
+      anchor.insertAdjacentHTML(
+        "beforebegin",
+        '<p class="note">This page is open straight off the filesystem, where the browser blocks ' +
+          "both module scripts and <code>fetch</code>, so nothing below can load. Serve the folder " +
+          "over HTTP instead: <code>python -m http.server --directory docs</code>, then open " +
+          "<code>http://localhost:8000</code>.</p>",
+      );
+    });
+  }
+</script>
 </head>
 <body class="panel">
 
@@ -170,15 +189,19 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
   </section>
 
   <!-- ============================ COMPANIONS ============================ -->
-  <!-- The page above is the RESEARCH, fixed at 2015-2024. These two run the same frozen pipeline
+  <!-- The page above is the RESEARCH, on a fixed window. 2015 is where the PRICES start; the
+       walk-forward is scored out of sample from 2016 to 2023, which is what the data-oos span
+       prints two sections up. Saying "2015-2024" here contradicted that span on the same page.
+       These two run the same frozen pipeline
        forward to today. Placed after the charts on purpose: the direction contract reserves the
        first viewport for the verdict and the live chart, and the topbar carries these links for
        a reader who wants them immediately. -->
   <section class="how">
     <h2>The same model, running live</h2>
     <p class="lede">
-      Everything above is the research window, fixed at 2015 to 2024 so the numbers cannot move
-      under you. The same pipeline, with every knob frozen, also runs forward to the present on a
+      Everything above is the research window, fixed so the numbers cannot move under you: prices
+      from 2015, scored out of sample over <span data-oos>loading</span>. The same pipeline, with
+      every knob frozen, also runs forward to the present on a
       wider set of markets. Nothing was re-fitted or re-chosen to make it work there, which is what
       makes it a genuine out-of-sample test rather than a second search.
     </p>

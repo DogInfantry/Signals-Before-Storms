@@ -51,22 +51,31 @@ function seriesFor(d, source) {
 }
 
 function drawStats(d) {
-  const t = d.scorecard_net;
+  // These tiles follow the gross/net switch. They used to read `scorecard_net` unconditionally, so
+  // pressing Gross moved the curves and the scorecard and left the four headline numbers on net,
+  // with nothing on screen saying so.
+  const t = d[`scorecard_${state.cost}`];
   const get = (book, cName) => t.rows[t.index.indexOf(book)][t.columns.indexOf(cName)];
   const lead = "hmm_conditional";
-  const p = d.paired["60_40"][lead];
+  const bench = "60_40";
+  // `paired` is bootstrapped on net returns and has no gross counterpart, so this one tile cannot
+  // follow the switch. It says so in its own label rather than changing meaning silently.
+  const p = d.paired[bench][lead];
+  const spansZero = p.ci[0] < 0 && p.ci[1] > 0;
   const tiles = [
     [
       "Max drawdown",
       pct(get(lead, "max_drawdown"), 1),
-      `60/40 took ${pct(get("60_40", "max_drawdown"), 1)}`,
+      `60/40 took ${pct(get(bench, "max_drawdown"), 1)}`,
     ],
-    ["Calmar", num(get(lead, "calmar")), `60/40 managed ${num(get("60_40", "calmar"))}`],
-    ["Sharpe", num(get(lead, "sharpe")), `60/40 managed ${num(get("60_40", "sharpe"))}`],
+    ["Calmar", num(get(lead, "calmar")), `60/40 managed ${num(get(bench, "calmar"))}`],
+    ["Sharpe", num(get(lead, "sharpe")), `60/40 managed ${num(get(bench, "sharpe"))}`],
     [
-      "Sharpe gap vs 60/40",
+      "Sharpe gap vs 60/40, net",
       signed(p.d),
-      `95% interval ${num(p.ci[0])} to ${num(p.ci[1])}, spans zero`,
+      // Derived, not asserted. Every interval spans zero on both universes today, which is the
+      // finding, but a hardcoded "spans zero" would keep saying so after any re-export.
+      `95% interval ${num(p.ci[0])} to ${num(p.ci[1])}, ${spansZero ? "spans zero" : "excludes zero"}`,
     ],
   ];
   $("#stats").innerHTML = tiles
@@ -169,7 +178,9 @@ async function boot() {
   });
   if (!DATA[state.market]) {
     // A page that silently shows nothing is worse than one that says why. This fires when the
-    // page is opened straight off the filesystem, where fetch is blocked by the file:// origin.
+    // payload is missing or unreadable over HTTP, a 404 or a 500 or a bad deploy. It does NOT
+    // fire on file://: this file is a module, and module scripts never load on that origin, so
+    // boot() is never reached. index.html carries a classic script for that case instead.
     $("#charts").innerHTML =
       '<p class="note">Result data could not be loaded. Serve this directory over HTTP rather than opening the file directly, then reload.</p>';
     return;
