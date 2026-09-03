@@ -9,7 +9,8 @@ leak-proof with an expanding walk-forward, charge transaction costs, benchmark a
 
 **PUBLIC**: https://github.com/DogInfantry/Signals-Before-Storms (Apache-2.0, CI green).
 **LIVE SITE**: https://signals-before-storms.vercel.app (Vercel project `signals-before-storms`,
-scope `anklesh-s-projects`, GIT-CONNECTED as of 2026-07-26, so **every push to `main` deploys**).
+scope `anklesh-s-projects`, GIT-CONNECTED as of 2026-07-26, so **every push to `main` deploys**,
+though since 2026-09-03 only the projects whose own files changed, see `ignoreCommand` below).
 **THE OTHER TWO LIVE SITES**: https://regime-monitor-lyart.vercel.app and
 https://storm-ledger.vercel.app. **Always link the PRODUCTION ALIAS, never a deployment URL.**
 Measured 2026-07-29: the README had shipped
@@ -34,7 +35,15 @@ into, which is exactly why this survived a visual check. Verify a published link
   Merging these "duplicate" configs into one breaks two of the three deploys. Two guards keep the
   ORIGINAL project safe now that a Next.js app lives in the repo: there is **no `package.json` at
   the repo root**, and the root config pins `"framework": null`. Do not add a root `package.json`.
-  Every push to `main` rebuilds ALL THREE projects; that is expected, not a regression.
+  **Each project now carries an `ignoreCommand`, so a push rebuilds only the projects it touches.**
+  Before 2026-09-03 every push rebuilt all three, and because the daily bot commit changes only the
+  two payloads, 16 of the last 20 deployments of `signals-before-storms` were rebuilds of unchanged
+  output. The guard diffs `$VERCEL_GIT_PREVIOUS_SHA` against HEAD over a `:/`-rooted pathspec.
+  **Do NOT rewrite it as `HEAD^ HEAD`**: that was the first version and it broke on its own first
+  run, because Vercel builds the TIP commit and `HEAD^ HEAD` sees only that commit, not the push.
+  A six-commit push whose tip touched neither `docs/` nor the config skipped the docs build and
+  left production serving the previous `site.js`. Exit 0 skips, non-zero builds, and every failure
+  mode (unset variable, unresolvable SHA) lands on build.
 - Repo topics and homepage URL are set. `docs/data/*.json` revalidates every request, `/img/*`
   caches for a week with revalidation (NOT immutable: two figures changed content without changing
   filename, and immutable meant a returning reader kept the stale one for a year).
@@ -566,6 +575,9 @@ It is built to FAIL CLOSED, and every guard exists because the corresponding fai
   one**. A vendor outage does not raise; the market just vanishes from the page. The backwards
   check was added after the defect above actually shipped, and equal dates are allowed on purpose
   (a quiet day re-exports the same sessions and must still publish).
+- **The refresh commits as `DogInfantry <ankleshrawat5@gmail.com>` since 2026-09-03, not as
+  `github-actions[bot]`.** The commit MESSAGE is what marks it automated; it shows unverified,
+  because the runner holds no signing key.
 - `tools/regime_alert.py` diffs the previous committed payload against the fresh one and prints
   Markdown into `$GITHUB_STEP_SUMMARY`, so the report renders on the run page and rides GitHub's
   own notifications. **NO third-party service and NO secret**, by explicit user decision on
