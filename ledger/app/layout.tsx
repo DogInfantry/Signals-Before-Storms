@@ -24,7 +24,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "The Storm Ledger - volatility regimes across eleven markets",
   description:
-    "A hidden Markov model sorts eleven markets into three volatility states, out of sample. Volatility orders 11 of 11. Return orders 2. The states rank risk, not return.",
+    "A hidden Markov model sorts eleven markets into three volatility states, out of sample. Volatility orders 11 of 11. Return orders none of them: no ordering at all on 7, and pointing both ways on the rest. The states rank risk, not return.",
 };
 
 export default function RootLayout({

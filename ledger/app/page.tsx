@@ -75,8 +75,15 @@ export default function Page() {
   const asOf = assets.map((a) => a.as_of).sort().at(-1)!;
   const oosN = Math.max(...assets.map((a) => a.oos.n));
 
-  const volMono = assets.filter((a) => a.vol_monotone).length;
-  const backwards = assets.filter((a) => a.ret_ordering === "backwards");
+  // Counts come from the exported `replication` block, never recomputed here, so this page and the
+  // monitor cannot state one statistic two ways. `replication` carries only the backwards count, so
+  // the ascending and unordered split is TALLIED from each market's own exported `ret_ordering`
+  // verdict. Counting labels the exporter already assigned is not re-deriving them.
+  const byOrdering = (k: Asset["ret_ordering"]) => assets.filter((a) => a.ret_ordering === k);
+  const ascendingOn = byOrdering("ascending");
+  const backwards = byOrdering("backwards");
+  const ascending = ascendingOn.length;
+  const unordered = byOrdering("mixed").length;
   const inCrisisNow = assets.filter((a) => a.current.label === CRISIS);
 
   return (
@@ -119,14 +126,17 @@ export default function Page() {
             <span className="num">{oosN.toLocaleString("en-GB")}</span> out-of-sample
             sessions, volatility rises monotonically through the three states on{" "}
             <span className="num">
-              {volMono} of {assets.length}
+              {rep.vol_monotone} of {rep.total}
             </span>
-            . Return does the same on{" "}
+            . Return does not. It carries no ordering at all on{" "}
             <span className="num">
-              {rep.backwards} of {rep.judged}
+              {unordered} of {rep.judged}
             </span>
-            . The states rank risk. They do not rank return, and a strategy that trades
-            them as though they did loses to a static sixty-forty.
+            , and where an ordering does appear it points both ways: ascending on{" "}
+            <span className="num">{ascending}</span>, backwards on{" "}
+            <span className="num">{rep.backwards}</span>. The states rank risk. They do
+            not rank return, and a strategy that trades them as though they did loses to a
+            static sixty-forty.
           </p>
         </div>
         <aside className="col-note">
@@ -211,13 +221,13 @@ export default function Page() {
           >
             <div>
               <p className="label" style={{ marginBottom: "0.9rem" }}>
-                ANNUALISED VOLATILITY &middot; RISES ON {volMono}/{assets.length}
+                ANNUALISED VOLATILITY &middot; RISES ON {rep.vol_monotone}/{rep.total}
               </p>
               <Slope col="eq_ann_vol" assets={assets} />
             </div>
             <div>
               <p className="label" style={{ marginBottom: "0.9rem" }}>
-                ANNUALISED RETURN &middot; RISES ON {rep.backwards}/{rep.judged}
+                ANNUALISED RETURN &middot; NO ORDERING ON {unordered}/{rep.judged}
               </p>
               <Slope col="eq_ann_ret" assets={assets} />
             </div>
@@ -229,6 +239,9 @@ export default function Page() {
             two episodes is not an ordering.
             {backwards.length > 0 && (
               <> Backwards on {backwards.map((a) => a.ticker).join(", ")}.</>
+            )}
+            {ascendingOn.length > 0 && (
+              <> Ascending on {ascendingOn.map((a) => a.ticker).join(", ")}.</>
             )}
           </p>
         </div>
