@@ -82,20 +82,11 @@
   }
 }
 
-:root[data-theme="dark"] {
-  --ground: #0d0c0a; --plate: #1c1916;
-  --chip-ink-0: #0d0c0a; --chip-ink-1: #0d0c0a; --chip-ink-2: #0d0c0a;
-  --ink: #f2eee7; --ink-soft: #b5ada0; --ink-faint: #8b8377; --rule: #332e28;
-  --regime-0: #e8b84b; --regime-1: #e07a3c; --regime-2: #d1524a;
-  --series-a: #6cb6e8; --series-b: #f0895a;
-}
-:root[data-theme="light"] {
-  --ground: #f4f1ec; --plate: #fff;
-  --chip-ink-0: #16130f; --chip-ink-1: #fff; --chip-ink-2: #fff;
-  --ink: #16130f; --ink-soft: #4a443c; --ink-faint: #6a6359; --rule: #ddd7cd;
-  --regime-0: #b8860b; --regime-1: #9e4310; --regime-2: #6b1210;
-  --series-a: #1a6ca8; --series-b: #c8501e;
-}
+/* No [data-theme] overrides here. Two blocks used to sit at this point duplicating the dark
+   palette above, but nothing in index.html or app.js ever set that attribute, so they were
+   unreachable and free to drift from the media query they copied. Theming is
+   prefers-color-scheme only. Add them back with a toggle that sets the attribute, or not
+   at all. */
 
 * { box-sizing: border-box; }
 

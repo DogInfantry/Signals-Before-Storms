@@ -25,9 +25,13 @@ data/*
 results/*
 !results/.gitkeep
 
-# `data/*` above has no leading slash, so it matches ANY directory named data at
-# any depth. The exported site payloads live in such directories and MUST ship, or
-# the Vercel build fails on a missing import. Re-include them explicitly.
+# `data/*` does NOT match every directory named data. A pattern with a slash anywhere
+# but the end is anchored to this file's directory, so `data/*` matches the repo-root
+# `data/` only. Measured: `git check-ignore -v docs/data/x` and `monitor/data/x` both
+# report NOT IGNORED. That anchoring, not the two re-includes below, is what lets the
+# exported site payloads ship. The re-includes are kept as documentation of intent and
+# as a guard if `data/*` is ever rewritten as `**/data/*`, which WOULD catch them and
+# would break the Vercel build on a missing import.
 !monitor/data/*.json
 !ledger/public/data/*.json
 
