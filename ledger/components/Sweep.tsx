@@ -10,6 +10,7 @@ import {
   grouped,
   iso,
   monitor,
+  r2,
   runSpans,
   simultaneity,
   x,
@@ -268,7 +269,7 @@ export default function Sweep() {
                                 key={`w${i}`}
                                 x={x(s.from)}
                                 y={0}
-                                width={Math.max(x(s.to) - x(s.from), 0.6)}
+                                width={r2(Math.max(x(s.to) - x(s.from), 0.6))}
                                 height={ROW - PAD}
                                 fill="var(--r2)"
                                 style={{ opacity: `calc(var(--wash) * ${wash})` }}
@@ -287,7 +288,7 @@ export default function Sweep() {
                               key={`r${i}`}
                               x={x(s.from)}
                               y={ROW - RAIL - PAD}
-                              width={Math.max(x(s.to) - x(s.from), 0.6)}
+                              width={r2(Math.max(x(s.to) - x(s.from), 0.6))}
                               height={RAIL}
                               fill={`var(--r${s.label})`}
                             />

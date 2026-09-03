@@ -58,12 +58,24 @@ export const GROUPS = [
   { key: "commodity", label: "COMMODITIES", classes: ["Commodity"] },
 ] as const;
 
+/**
+ * The taxonomy above is a fixed order, not a sort, so it names its asset classes literally. That
+ * means a market carrying a class this list does not know would be filtered out of every group and
+ * vanish from BOTH the instrument list and the Sweep plate, silently, because Sweep builds its rows
+ * from this same function. monitor/app.js derives its filter list from the data and cannot do that.
+ * Unmatched markets are collected into a trailing group instead, so a new asset class shows up
+ * looking unplaced rather than not showing up at all. Empty groups are dropped.
+ */
 export function grouped(assets: Asset[] = monitor.assets) {
-  return GROUPS.map((g) => ({
+  const known = new Set(GROUPS.flatMap((g) => g.classes as readonly string[]));
+  const out: { key: string; label: string; assets: Asset[] }[] = GROUPS.map((g) => ({
     key: g.key,
     label: g.label,
     assets: assets.filter((a) => (g.classes as readonly string[]).includes(a.asset_class)),
   }));
+  const rest = assets.filter((a) => !known.has(a.asset_class));
+  if (rest.length) out.push({ key: "other", label: "OTHER", assets: rest });
+  return out.filter((g) => g.assets.length > 0);
 }
 
 /* ----------------------------------------------------------------- time -- */
@@ -75,8 +87,22 @@ const DAY_MS = 86_400_000;
 export const T0 = day(monitor.window.chart_from);
 export const T1 = Math.max(...monitor.assets.map((a) => day(a.as_of)));
 export const span = T1 - T0;
-/** Date -> 0..1000 plate units. */
-export const x = (t: number) => ((t - T0) / span) * 1000;
+/** Round to 2dp and stay a number, so results can still be subtracted. */
+export const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * Date -> 0..1000 plate units, rounded to 2dp.
+ *
+ * The rounding is not cosmetic. Sweep draws roughly 1,300 rects straight from this, and React
+ * serialises whatever float it is handed, so unrounded values shipped attributes like
+ * x="286.36779505946936" and made raw coordinates half of the prerendered HTML. The plate is
+ * 1000 units wide rendered at 660 to 1000 px, so 0.01 units is under a hundredth of a pixel and
+ * nothing moves. sparkPath already rounded its own vertices for exactly this reason.
+ *
+ * Callers subtracting two of these must round again: 2dp minus 2dp reintroduces IEEE noise
+ * (286.37 - 258.01 = 28.360000000000014), which is why r2 is exported alongside.
+ */
+export const x = (t: number) => r2(((t - T0) / span) * 1000);
 
 /**
  * A run is drawn from its own start to the NEXT run's start, never to its own
