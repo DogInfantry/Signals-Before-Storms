@@ -646,7 +646,11 @@ pre {
   cursor: pointer;
 }
 .switch button + button { border-left: 1px solid var(--rule); }
-.switch button[aria-pressed="true"] { background: var(--series-a); color: #fff; }
+/* Label ink INSIDE a saturated fill, so it uses the same token the weight-stack sleeves do.
+   A literal #fff survived here: on the dark ground --series-a lightens to #6aa9d8 and white
+   on it measures 2.54:1, under the 4.5:1 text floor. --seg-ink reads 5.59:1 light and
+   7.07:1 dark. Measured against the deployed page, not assumed. */
+.switch button[aria-pressed="true"] { background: var(--series-a); color: var(--seg-ink); }
 .switch button:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
@@ -703,7 +707,10 @@ pre {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
-:is(.plot, .live) .regime-name { text-anchor: middle; font-weight: 600; }
+/* No text-anchor here. A CSS property outranks an SVG presentation attribute, so setting it
+   in this shared rule silently overrode every text-anchor="end" charts.js emits, and four
+   charts centred their regime labels on a right-edge x. Each <text> now carries its own. */
+:is(.plot, .live) .regime-name { font-weight: 600; }
 
 .readout {
   display: flex;

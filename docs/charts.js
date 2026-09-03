@@ -368,7 +368,7 @@ export function labelProfile(el, d, { progress = 1 } = {}) {
       return (
         bar(x0 + gw * 0.12, bw, r[c("eq_ann_ret")], "var(--series-a)", kRet) +
         bar(x0 + gw * 0.5, bw, r[c("eq_ann_vol")], "var(--series-b)", kVol) +
-        `<text x="${mid}" y="${H - 28}" class="tick regime-name" style="fill: var(--regime-${i})">${REGIME_NAMES[i] || i}</text>` +
+        `<text x="${mid}" y="${H - 28}" class="tick regime-name" text-anchor="middle" style="fill: var(--regime-${i})">${REGIME_NAMES[i] || i}</text>` +
         `<text x="${mid}" y="${H - 14}" class="tick" text-anchor="middle">${r[c("days")]} days, ${r[c("episodes")]} episodes</text>`
       );
     })
