@@ -13,38 +13,49 @@ equity, cash and gold using per-regime convex optimization, validated with a lea
 walk-forward backtest.** It runs on Indian markets (NIFTY 50, GOLDBEES, LIQUIDBEES, India VIX) as
 the primary universe and US markets (SPY, TLT, GLD, VIX) as an out-of-sample robustness check.
 
+> **In plain English.** Markets go through calm stretches and violent ones. I built a model that
+> works out which one you are in, without ever letting it see the future. It gets that right, on
+> every market I have tried it on. Then I bet on it in a simulation, and the bet did not pay.
+> Working out *why* is what this repository is. The states tell you how violent the market is about
+> to be, not which way it is going, and those two things are not the same.
+>
+> **Never read a backtest before?** Start with **[EXPLAINER.md](EXPLAINER.md)**, which defines every
+> term used here, in plain English, in the order the pipeline uses them.
+
 > [!IMPORTANT]
 > **The honest headline: the regime overlay never separates from a simple 60/40 or equal-weight
 > portfolio on risk-adjusted return.** Its Sharpe edge on India sits inside the noise, with every
 > paired confidence interval against both benchmarks spanning zero. It does cut maximum drawdown by
 > roughly two thirds on Indian data. This repository is published as a *rigorous negative result
-> with a diagnosis*, not as a winning strategy, and it documents its own retracted finding. Full
-> reasoning in [The finding](#the-finding).
+> with a diagnosis*, not as a winning strategy, and it documents its own retracted finding.
 
 ![Four panels. Top left, next-day annualised return rises with the volatility label while volatility also rises, so the return ordering runs the wrong way. Top right, only fourteen crisis episodes stand behind two hundred and sixty-one days. Bottom left, paired Sharpe differences against each benchmark, every interval crossing zero. Bottom right, the overlay ends lower than the benchmark but never falls far.](docs/img/india_story.png)
 
-**The entire argument, in reading order.** The model does what it was asked and finds real,
-persistent states, but those states predict *variance*, not *direction* (top left). The evidence
-behind any regime claim is far thinner than the day count suggests, 14 episodes rather than 261 days
-(top right). No book separates from its benchmark once the comparison uses a paired difference test
-instead of overlapping intervals (bottom left). What the overlay does buy is drawdown: a fraction of
-the benchmark's worst loss (bottom right).
+*The whole argument in one figure, in reading order: the states predict variance, not direction
+(top left); the evidence is 14 episodes, not 261 days (top right); nothing separates from its
+benchmark under a paired test (bottom left); what it does buy is drawdown (bottom right).*
 
-### Three live deployments
+---
 
-- **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** - the graded backtest
-  itself. Toggle any of eight books, switch gross against net of costs, switch India against the
-  US, and watch the ranking change. The [full research log](https://signals-before-storms.vercel.app/story)
-  sits behind it.
-- **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** - the same fixed HMM pipeline run
-  live on eleven markets, detection only. Which volatility regime each market is in right now, how
-  long it has been there, and what that implies for position size.
-- **[The Storm Ledger](https://storm-ledger.vercel.app/)** - a
-  broadsheet reading of that same eleven-market result: the same data, written as an argument
-  instead of a dashboard.
+## Three live deployments
+
+| [![The research site: eight toggleable strategy books drawn over shaded walk-forward regime bands.](docs/img/site_signals.png)](https://signals-before-storms.vercel.app) | [![The monitor: a grid of market cards, each with a sparkline, a regime badge and a sessions-in-regime count.](docs/img/site_monitor.png)](https://regime-monitor-lyart.vercel.app/) | [![The ledger: a serif broadsheet masthead reading the model works, the strategy does not.](docs/img/site_ledger.png)](https://storm-ledger.vercel.app/) |
+|:--:|:--:|:--:|
+| **[Signals-Before-Storms](https://signals-before-storms.vercel.app)** | **[Regime Monitor](https://regime-monitor-lyart.vercel.app/)** | **[The Storm Ledger](https://storm-ledger.vercel.app/)** |
+| The graded backtest, driveable. Toggle any of eight books, switch gross against net of costs, switch India against the US, watch the ranking change. | The same frozen pipeline run live on eleven markets, detection only. Which volatility regime each market is in right now, and how long it has been there. | The same eleven-market result written as an argument instead of a dashboard. Twin slopegraphs, a crisis-simultaneity narrative, one instrument table. |
+
+The [full research log](https://signals-before-storms.vercel.app/story) sits behind the first one.
+The Monitor and the Ledger read the **same** exported JSON, byte-compared in CI, so two live sites
+cannot show two truths.
 
 <details>
-<summary><b>How one repository serves three sites, and why the research one cannot move.</b></summary>
+<summary><b>How one repository serves three sites</b></summary>
+
+Three separate Vercel projects read three different root directories out of this one repository.
+The research site is pinned to a fixed window so its numbers cannot move under a reader; the other
+two run the same frozen model forward to the present and are rebuilt every weekday by a GitHub
+Action that [fails closed](#the-regime-monitor-eleven-markets-on-the-frozen-pipeline) rather than
+publishing a payload it cannot verify.
 
 ```mermaid
 flowchart TD
@@ -61,12 +72,6 @@ flowchart TD
     style D3 fill:#37474f,color:#fff
 ```
 
-Three separate Vercel projects read three different root directories out of this one repository.
-The research site is pinned to a fixed window so its numbers cannot move under a reader; the other
-two run the same frozen model forward to the present and are rebuilt every weekday by a GitHub
-Action that [fails closed](#the-regime-monitor-the-same-model-on-eleven-markets) rather than
-publishing a payload it cannot verify.
-
 </details>
 
 ---
@@ -81,17 +86,16 @@ publishing a payload it cannot verify.
 | **Is the backtest leak-proof?** | Yes, and asserted by unit tests: causal features, train-only scaling, per-fold refit, causal decode, 1-day execution lag |
 | **Are the results deflated?** | Yes. Deflated Sharpe at an honest 7-trial count, plus stationary-bootstrap confidence intervals |
 | **Sample size** | 1,814 out-of-sample trading days (India), 1,886 (US), 2016-2023 |
-| **What else is here?** | [Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) (live dashboard, 11 markets) and [The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet) (broadsheet narrative of the same 11-market result) |
-| **Stack** | Python 3.11+, `hmmlearn`, `cvxpy`, `pandas`, `numpy`, `scipy`, `scikit-learn`, `yfinance`, `matplotlib` |
+| **Stack** | Python 3.11+, `hmmlearn`, `cvxpy`, `pandas`, `numpy`, `scipy`, `scikit-learn`, `yfinance`, `matplotlib`, `jumpmodels`, `pydantic`, `uv`, `pytest`, `ruff` |
 
 ---
 
 ## The finding
 
-Measured at the lag the strategy actually trades (regime label known at the close of day *t*,
-return earned on day *t+1*):
-
 ![Bars of next-day annualised return and annualised volatility per regime on India. Volatility climbs 11.2 to 14.9 to 31.7 percent, exactly as a risk-ordered label should. Return climbs too, 10.2 to 15.0 to 18.4 percent, which is backwards.](docs/img/india_label_profile.png)
+
+*Measured at the lag the strategy actually trades: the label is known at the close of day t, the
+return is earned on day t+1. The grey dashed line is what a working risk signal would look like.*
 
 | Regime label | India days | India ann. return | India ann. vol | US days | US ann. return | US ann. vol |
 |---|---|---|---|---|---|---|
@@ -114,8 +118,16 @@ market structure.
 
 ## How it works
 
+![Mean portfolio weight per sleeve in each regime. Equity is 20 percent in Bull, 18 in Bear and 9 in Crisis, the rest in cash and gold, so the book is permanently defensive rather than too aggressive.](docs/img/india_regime_weights.png)
+
+*The stance map does exactly what it was told, and this is what that costs. Equity never exceeds a
+quarter of the book, so the strategy is not taking too much risk, it is taking far too little.*
+
+That is also why volatility targeting at 10% barely binds: minimum variance has already pinned the
+book below the target.
+
 <details>
-<summary><b>The pipeline from prices to deflated statistics, the three per-regime convex programs, and what each state is actually told to hold.</b></summary>
+<summary><b>Pipeline and the three convex programs</b></summary>
 
 ```mermaid
 flowchart LR
@@ -135,8 +147,8 @@ flowchart LR
     style K fill:#37474f,color:#fff
 ```
 
-**Per-regime objectives** (each a distinct convex program solved with `cvxpy`, long-only, fully
-invested, weight-capped):
+Each regime is a distinct convex program solved with `cvxpy`, long-only, fully invested and
+weight-capped:
 
 | Regime | Objective | Rationale |
 |---|---|---|
@@ -144,21 +156,30 @@ invested, weight-capped):
 | 1 Bear | Minimize variance | Stressed, preserve capital |
 | 2 Crisis | Minimize variance + hard equity cap | Violent, de-risk hard |
 
-![Mean portfolio weight per sleeve in each regime. Equity is 20 percent in Bull, 18 in Bear and 9 in Crisis, the rest in cash and gold, so the book is permanently defensive rather than too aggressive.](docs/img/india_regime_weights.png)
-
-The stance map does exactly what it was told, and the figure shows what that costs: equity never
-exceeds a quarter of the book. **The strategy is not taking too much risk, it is taking far too
-little**, which is also why volatility targeting at 10% barely binds.
-
 </details>
-
 
 ---
 
 ## Results
 
+![Equity curves for every book above their drawdowns. The 60/40 book climbs highest and falls furthest at about 24 percent. The HMM books track lower and flatter with a worst drawdown near 6 percent.](docs/img/india_equity_drawdown.png)
+
+*The trade the overlay actually makes, on the graded universe: it gives up the top of the curve to
+buy the bottom of the drawdown.*
+
+**Read the Sharpe column and the strategy is unremarkable.** No book is statistically
+distinguishable from either benchmark. **Read max drawdown and Calmar, the other two metrics the
+brief names, and the picture inverts**: -6.2% worst drawdown against -15.2% and -23.7%, with Calmar
+roughly 1.9x and 2.8x the benchmarks. That is not noise; it is the mechanical consequence of routing
+to minimum variance whenever the label is not calm. Whether the trade is worth making is a mandate
+question, not a statistical one.
+
+**The US does not reproduce this, and saying so is the point of running it.** No HMM book improves
+on either benchmark on Sharpe or Calmar there, and the drawdown protection does not reappear.
+Minimum variance had nowhere to hide in 2022, when bonds fell alongside equities.
+
 <details>
-<summary><b>Both scorecards in full. Eight books on India and on the US, gross and net of costs, with Sortino, Calmar, turnover and deflated Sharpe.</b></summary>
+<summary><b>Both scorecards in full</b></summary>
 
 Every book, strategy and benchmark alike, runs through the **same cost engine** at 7.5 bps per unit
 of turnover with a one-day execution lag. A benchmark costed on different terms is not a benchmark.
@@ -180,16 +201,6 @@ against rf = 0 would hand every defensive book a free Sharpe for simply holding 
 | HMM, unconditional | 6.9% | 3.9% | 0.748 | 0.758 | 1.097 | -6.2% | 1.103 | 0.50x | 0.698 |
 | Static 60/40 (equity/cash) | 9.8% | 10.1% | 0.604 | 0.607 | 0.827 | -23.7% | 0.413 | 0.36x | 0.552 |
 
-![Equity curves for every book above their drawdowns. The 60/40 book climbs highest and falls furthest at about 24 percent. The HMM books track lower and flatter with a worst drawdown near 6 percent.](docs/img/india_equity_drawdown.png)
-
-**Read the Sharpe column and the strategy is unremarkable.** No book here is statistically
-distinguishable from either benchmark (established by a paired difference test, below). **Read max
-drawdown and Calmar, the other two metrics the brief names, and the picture inverts**: -6.2% worst
-drawdown against -15.2% and -23.7%, with Calmar roughly 1.9x and 2.8x the benchmarks. That is not
-noise; it is the mechanical consequence of routing to minimum variance whenever the label is not
-calm. The overlay buys drawdown protection and pays for it in return. Whether that trade is worth
-making is a mandate question, not a statistical one.
-
 The drawdown-feature variant tops the table and is **not** counted as a win: its success criterion
 was pre-registered before any Sharpe was computed, and it failed on that criterion.
 
@@ -208,25 +219,25 @@ SPY / TLT / GLD / ^VIX, out-of-sample 2016-07-05 to 2023-12-29, n = 1,886, rf = 
 | HMM, regime-conditional | 4.9% | 9.6% | 0.542 | 0.765 | -28.7% | 0.170 | 4.19x | 0.486 |
 | HMM, unconditional | 4.8% | 9.6% | 0.535 | 0.758 | -27.4% | 0.174 | 2.74x | 0.478 |
 
-**The US does not reproduce India, and saying so is the point of running it.** No HMM book improves
-on either benchmark on Sharpe or Calmar, and the drawdown protection that vindicated the overlay on
-India does not reappear: the best HMM drawdown is level with 60/40 and well behind equal weight at
--23.0%. Minimum variance had nowhere to hide in 2022, when bonds fell alongside equities. A result that held on one market and
-was quietly assumed to hold on the other would be the more comfortable story. It is not the one the
-data tells.
+The best HMM drawdown here is level with 60/40 and well behind equal weight at -23.0%. A result
+that held on one market and was quietly assumed to hold on the other would be the more comfortable
+story. It is not the one the data tells.
 
 </details>
-
 
 ---
 
 ## What makes this different
 
-<details>
-<summary><b>The eight checks that changed the conclusion. Leak-proofing asserted by tests rather than claimed, episodes instead of days, paired difference tests, deflation at an honest trial count, sensitivity reported as a surface, honest benchmarks with a no-model ablation, a palette validated rather than chosen, and a vendor-data guard.</b></summary>
+Most public backtest repositories report a Sharpe ratio and stop. Eight checks changed the
+conclusion here. These two changed it most:
 
-Most public backtest repositories report a Sharpe ratio and stop. These are the checks that changed
-the conclusion here, each one implemented, tested, and documented.
+| [![Each crisis episode drawn as its own bar, ordered by length. One long COVID episode dominates and the remaining thirteen are far shorter, several of them positive.](docs/img/india_episode_bars.png)](docs/img/india_episode_bars.png) | [![Paired Sharpe differences against the 60/40 benchmark, one row per book, every interval crossing the zero line.](docs/img/india_paired_forest.png)](docs/img/india_paired_forest.png) |
+|:--:|:--:|
+| **Episodes, not days.** The crisis label spans 261 days, which sounds like evidence, across just **14 episodes**. Drop the longest and it runs **+53.6%**. | **Paired, not marginal.** Overlapping marginal intervals say nothing about a gap. Differenced on shared dates, every interval spans zero. |
+
+<details>
+<summary><b>All eight checks, in full</b></summary>
 
 ### 1. Leak-proofing asserted by tests, not claimed in prose
 
@@ -248,16 +259,14 @@ each pinned by a unit test:
 **`days` is not a sample size.** A claim about a regime is supported by how many times that regime
 occurred, not how many rows it spanned.
 
-![Each crisis episode drawn as its own bar, ordered by length. One long COVID episode dominates and the remaining thirteen are far shorter, several of them positive.](docs/img/india_episode_bars.png)
-
 | Label | India days | India **episodes** | Ann. return | Ex-largest episode |
 |---|---|---|---|---|
 | 0 Bull | 822 | 27 | +10.2% | +2.7% |
 | 1 Bear | 731 | 30 | +15.0% | +13.1% |
 | 2 Crisis | 261 | **14** | +18.4% | **+53.6%** |
 
-The India crisis label spans 261 days, which sounds like evidence, across just **14 episodes**, only
-3 of which lost money. Drop the single longest (COVID) and the label runs **+53.6%** annualized.
+Only 3 of those 14 crisis episodes lost money. Drop the single longest (COVID) and the label runs
++53.6% annualized.
 
 **This check retracted the project's own apparent discovery.** A Jump Model crisis label reading
 -17.1% over 94 days was written up as the only directional state found anywhere in this work. It was
@@ -317,32 +326,21 @@ The strongest control in the repo is a **two-line volatility-threshold rule**: s
 costs, same walk-forward, but regimes come from a trailing-vol quantile instead of the HMM. If the
 HMM cannot beat that, the HMM is decoration. On the US, the rule wins outright (0.958 vs 0.542).
 
-### 7. Figures are designed, and the palette is validated rather than chosen
+### 7. The palette is validated, not chosen
 
-Every chart is generated by `src/regime_shift/style.py`, one module that owns typography, chrome and
-colour, so no figure carries a default that nobody decided on. Two rules:
+Every chart is generated by `src/regime_shift/style.py`, so no figure carries a default nobody
+decided on. `tools/validate_palette.py` enforces three floors and `tests/test_style.py` fails the
+build if a palette stops clearing them: 3:1 contrast against the chart surface, 8 units of CIE76
+separation after protanope and deuteranope simulation, and 90 degrees of hue separation for any
+palette that encodes by hue.
 
-- **Colour is computed.** `tools/validate_palette.py` checks every palette and `tests/test_style.py`
-  fails the build if one stops clearing the floors: 3:1 contrast against the chart surface, 8 units
-  of CIE76 separation after protanope and deuteranope simulation, and 90 degrees of hue separation
-  for any palette that encodes by hue. It has caught two real defects in palettes actually shipped
-  here: the old Bear amber at **1.92:1** contrast, and the Bull gold that replaced it at **1.80:1**,
-  both under the 3:1 floor.
-
-  It also corrected this README. An earlier version claimed the old green/amber/red triad had a
-  worst adjacent pair "separated by ~3 units where 8 is the floor". That does not reproduce:
-  measured, the triad's worst pair is **17.2** units, well clear, because those colours differ in
-  lightness. The real defect is one a distance metric cannot see. Simulate a dichromat and the
-  triad collapses to a single hue, its pairs **0.6, 1.1 and 1.4 degrees** apart, so the only thing
-  separating them is being lighter or darker. That is why sign is encoded blue against orange
-  (166.6 degrees) rather than green against red (1.1), and why three figures that had been drawing
-  sign as green-versus-red no longer do.
-- **Regimes are ordinal, so they get an ordinal encoding.** Bull to Bear to Crisis is an ordered
-  scale, so it uses a lightness ramp rather than three arbitrary hues. That states the ordering the
-  data actually has, and it survives colour blindness because lightness does.
-
-Charts also carry the finding in a subtitle and annotate the point the reader would otherwise miss,
-so no figure here depends on surrounding prose to be understood.
+It caught two real defects in palettes actually shipped here, the old Bear amber at **1.92:1**
+contrast and the Bull gold that replaced it at **1.80:1**, and it corrected a claim this README used
+to make: that the old green/amber/red triad separated by "~3 units where 8 is the floor". Measured,
+its worst pair is **17.2** units. The real defect is one a distance metric cannot see. Simulate a
+dichromat and the triad collapses to a single hue, its pairs **0.6, 1.1 and 1.4 degrees** apart,
+which is why sign is now blue against orange (166.6 degrees) and why regimes, being ordinal, get a
+lightness ramp rather than three arbitrary hues.
 
 ### 8. Vendor data guarded, not trusted
 
@@ -353,67 +351,47 @@ daily |log return| above 0.5 with a loud warning, and a test pins that a -13% cr
 
 </details>
 
-
 ---
 
 ## Regime detection in action
 
-<details>
-<summary><b>Out-of-sample labels shaded behind the NIFTY curve, and the two-line ablation that can beat the model.</b></summary>
-
 ![The NIFTY equity curve with out-of-sample regime labels shaded behind it in a light to dark ramp. The darkest crisis shading lines up with February 2018, Q4 2018, the COVID crash and 2022.](docs/img/india_regime_overlay.png)
 
-Out-of-sample regime labels shaded behind the NIFTY equity curve. Nothing here had access to its own
-future. With no future information the causal filter independently flags February 2018, Q4 2018,
-COVID and 2022.
+*Nothing here had access to its own future. With no future information the causal filter
+independently flags February 2018, Q4 2018, COVID and 2022.*
 
 The transition matrix diagonal runs 0.97 to 0.98, so the states are genuinely persistent rather than
 a coin flip relabelled. The corner zeros matter too: Bull never jumps straight to Crisis and Crisis
 never jumps straight to Bull, so the market always passes through the middle state. That is
 economically sensible behaviour the model was never told to produce.
 
-</details>
-
-
 ---
 
-## The Regime Monitor: the same model on eleven markets
+## The Regime Monitor: eleven markets on the frozen pipeline
 
-<details>
-<summary><b>Eleven markets on the frozen pipeline, what they say about the central finding, and the two things the monitor deliberately does differently.</b></summary>
-
-**Live at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/).** A second,
-separate deployment (`monitor/`, its own Vercel project) that ships the part of this research that
-**worked**. Detection is what held up, so the monitor reports which volatility regime
-each of eleven markets is in right now, how long it has been there, the transition matrix, the odds
-of entering Crisis within 21 sessions, and what that regime's measured volatility implies for
-position size. Rebuild it with:
-
-```
-uv run python tools/export_monitor_data.py
-```
+**Live at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/).** A separate
+deployment (`monitor/`) shipping the part of this research that **worked**. It reports which
+volatility regime each of eleven markets is in right now, how long it has been there, the
+transition matrix, the odds of entering Crisis within 21 sessions, and what that regime's measured
+volatility implies for position size. Three Indian equity indices, three global, five commodities,
+each fitted **independently** so that "Crisis" means crisis for that market rather than one global
+state pasted across eleven rows.
 
 **It is detection only.** No optimizer, no backtest, no benchmark. The regime-to-weights stance map
-is not shipped here, because this repo's own scorecard shows it losing outright on US; putting it in
-front of a reader would be selling the part that failed. The implied-size readout is
-`target_vol / regime realized vol`, capped at 1 - arithmetic on a measured quantity, displayed as
-such. It is **not** the inverse-variance stance-map test logged as declined trial 8, and the page
-says so. The deflated-Sharpe trial count stays at **7**: every asset is reported, none is adopted,
-no knob is re-chosen.
+is not shipped, because this repo's own scorecard shows it losing outright on the US; putting it in
+front of a reader would be selling the part that failed. The deflated-Sharpe trial count stays at
+**7**: every asset is reported, none is adopted, no knob is re-chosen.
 
-Three Indian equity indices (NIFTY 50, Bank NIFTY, NIFTY IT), three global (SPY, QQQ, TLT) and five
-commodities (gold, silver, WTI, copper, natural gas), each fitted **independently** so that "Crisis"
-means crisis for that market rather than one global state pasted across eleven rows.
-
-### What eleven markets say about the central finding
+<details>
+<summary><b>What eleven markets did to the finding</b></summary>
 
 Running the frozen pipeline on new tickers is out-of-sample generalization, and it **sharpened the
-negative result rather than confirming it**:
+negative result rather than confirming it**.
 
 > [!NOTE]
-> These five counts are read off `monitor/data/monitor.json`, which a scheduled GitHub Action
-> refreshes every weekday, so they can move. **Measured 2026-08-22**, newest completed session
-> 2026-08-21. Re-check any figure here with
+> These counts are read off `monitor/data/monitor.json`, which a scheduled GitHub Action refreshes
+> every weekday, so they can move. **Measured 2026-08-22**, newest completed session 2026-08-21.
+> Re-check with
 > `uv run python -c "import json;d=json.load(open('monitor/data/monitor.json'));print(d['replication'])"`.
 
 | Claim | Result across 11 markets (2026-08-22) |
@@ -438,68 +416,56 @@ Two smaller corrections fell out of building it, both recorded because they were
   volatility, max daily |log return| 2.299, re-probed 2026-07-27). The monitor uses `^NSEI` and
   `GC=F` directly and never touches either ETF.
 
-### Two things the monitor does differently, and why
-
-**The transition matrix is counted off the realized out-of-sample label path, not read out of
-`transmat_`.** They are different quantities and on real data they disagree badly: `transmat_`
-implies 50-80 session dwells against a realized 3-6 everywhere, and on QQQ, TLT and gold hmmlearn
-settled into a near-deterministic 2-cycle on the final fold, reading as "98.6% chance of switching
-tomorrow" beside a chart showing regimes that last weeks. A panel captioned *given today's regime,
-where tomorrow lands* has to describe the path it is drawing. After the change, the transition
+**Two things the monitor does differently.** The transition matrix is counted off the realized
+out-of-sample label path, not read out of `transmat_`, because on real data those two disagree
+badly: `transmat_` implies 50-80 session dwells against a realized 3-6 everywhere, and on QQQ, TLT
+and gold hmmlearn settled into a near-deterministic 2-cycle on the final fold, reading as "98.6%
+chance of switching tomorrow" beside a chart showing regimes that last weeks. Counted instead, the
 diagonal and the diagonal implied by measured dwell agree to within **0.008** on every market.
 
-**Crisis odds are a hitting probability, not a marginal.** `p @ P^21` is the chance of *sitting* in
-Crisis on day 21; the honest answer to "within the next 21 sessions" makes the Crisis row absorbing
-first. The distinction is not cosmetic - on NIFTY 50 the wrong construction read 0.3% against a
-correct 15%.
+And Crisis odds are a **hitting probability, not a marginal**. `p @ P^21` is the chance of *sitting*
+in Crisis on day 21; the honest answer to "within the next 21 sessions" makes the Crisis row
+absorbing first. On NIFTY 50 the wrong construction read 0.3% against a correct 15%.
 
-Each market carries its own data-quality notes on its card rather than in a footnote: natural gas
-trips the `|log return| > 0.5` outlier guard once, and WTI crude loses two rows to the April 2020
-negative settlement, where a log return is undefined.
+Each market carries its own data-quality notes on its card: natural gas trips the
+`|log return| > 0.5` outlier guard once, and WTI crude loses two rows to the April 2020 negative
+settlement, where a log return is undefined.
 
 </details>
-
 
 ---
 
 ## The Storm Ledger: the same eleven markets, read as a broadsheet
 
-<details>
-<summary><b>The same eleven-market result, written as an argument instead of a dashboard.</b></summary>
-
-**Live at [storm-ledger.vercel.app](https://storm-ledger.vercel.app/).**
-A third deployment (`ledger/`, Next.js, its own Vercel project) that reads the **same**
-`monitor.json` export the Regime Monitor draws from, but presents it as a broadsheet argument
-rather than a live instrument panel. Where the Monitor answers "where does each market stand right
-now," the Ledger answers "what does the eleven-market result actually mean," for a reader meeting
-the finding for the first time.
-
-The masthead states the headline in one sentence: **volatility orders 11 of 11 markets; return
-orders 2.** From there:
+**Live at [storm-ledger.vercel.app](https://storm-ledger.vercel.app/).** A third deployment
+(`ledger/`, Next.js) that reads the **same** `monitor.json` export the Regime Monitor draws from and
+presents it as an argument rather than an instrument panel. Where the Monitor answers "where does
+each market stand right now," the Ledger answers "what does the eleven-market result actually mean,"
+for a reader meeting the finding for the first time. Its masthead states the headline in one
+sentence: **volatility orders 11 of 11 markets; return orders 2.**
 
 | Section | What it shows |
 |---|---|
-| Twin slopegraphs | Annualized volatility and annualized return by regime state, the same eleven markets, side by side, so the reader performs the comparison instead of being told the conclusion |
+| Twin slopegraphs | Annualized volatility and annualized return by regime state, the same eleven markets side by side, so the reader performs the comparison instead of being told the conclusion |
 | Crisis-simultaneity narrative | Which markets entered the Crisis state together, and in what order, with margin notes on the sequence |
 | Instrument table | Every market grouped India / Global equity+rates / Commodities, each row showing current regime, sessions in that run, and the implied position size from measured volatility |
 
-It is not a second study. Same JSON, same eleven markets, same 7-trial deflated-Sharpe discipline,
-same detection-only scope: no optimizer, no backtest, no benchmark carried over. Rebuild both the
-Monitor's and the Ledger's data with the one shared exporter:
+It is not a second study: same JSON, same eleven markets, same 7-trial discipline, same
+detection-only scope. Rebuild both sites' data with the one shared exporter:
 
-```
+```bash
 uv run python tools/export_monitor_data.py
 ```
-
-</details>
-
 
 ---
 
 ## FAQ
 
+Definitions and the short answers, for a reader arriving without the vocabulary. The longer
+walkthrough is in [EXPLAINER.md](EXPLAINER.md).
+
 <details>
-<summary><b>What a market regime is, what lookahead bias is and how this prevents it, whether HMM regime detection actually improves returns, and whether you can trade this.</b></summary>
+<summary><b>Ten common questions</b></summary>
 
 **What is a market regime?**
 A market regime is a persistent state of market behaviour, such as calm rising (Bull), stressed
@@ -521,17 +487,23 @@ whole-sequence Viterbi, and a one-day execution lag. Each defence is asserted by
 **Does HMM regime detection actually improve portfolio returns?**
 On this data, no. The HMM identifies volatility regimes, and volatility carries no directional
 information: next-day returns rise with the volatility label rather than falling. It does reduce
-maximum drawdown substantially (-6.2% versus -23.7% for 60/40 on Indian data).
+maximum drawdown substantially, -6.2% versus -23.7% for 60/40 on Indian data.
 
 **What is a deflated Sharpe ratio?**
 The deflated Sharpe ratio (Bailey and Lopez de Prado) adjusts an observed Sharpe ratio for the
 number of strategy variants tested, correcting the selection bias that makes the best of many
 backtests look better than it is. This project reports it at an honest count of 7 trials.
 
+**What is the difference between a paired and a marginal confidence interval?**
+A marginal interval asks whether one strategy's Sharpe differs from zero. A paired interval asks
+whether the *gap* between two strategies differs from zero, by resampling both on the same dates so
+the shared market move cancels. Two overlapping marginal intervals do not establish that two
+strategies are indistinguishable; only the paired interval answers that question.
+
 **Why report a negative result?**
 Because it is the truthful one, and because a negative result with a diagnosis is more useful than a
-tuned positive with an unexamined one. The diagnosis here (volatility states carry no directional
-information) is a reusable finding that generalizes beyond this codebase.
+tuned positive with an unexamined one. The diagnosis here, that volatility states carry no
+directional information, is a reusable finding that generalizes beyond this codebase.
 
 **Can I use this for live trading?**
 No. This is research and educational code, and the headline finding is that the strategy does not
@@ -539,40 +511,23 @@ separate from simple benchmarks on risk-adjusted return, and underperforms them 
 universe. See [Disclaimer](#disclaimer).
 
 **What is the Regime Monitor?**
-A live, separate deployment at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/)
-that runs this project's fixed HMM pipeline on eleven markets in real time, detection only, no
-optimizer or backtest attached. It reports each market's current volatility regime, how long it
-has held that regime, and the position size that regime's measured volatility implies. See
-[The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets).
-
-**What is the Storm Ledger?**
-A broadsheet-style presentation, built in Next.js and live at
-[storm-ledger.vercel.app](https://storm-ledger.vercel.app/),
-that reads the same eleven-market data export as the Regime Monitor and turns it into a narrative:
-slopegraphs, a Crisis-simultaneity story, and a grouped instrument table. See
-[The Storm Ledger](#the-storm-ledger-the-same-eleven-markets-read-as-a-broadsheet).
+A live deployment at [regime-monitor-lyart.vercel.app](https://regime-monitor-lyart.vercel.app/)
+running this project's fixed HMM pipeline on eleven markets, detection only, no optimizer or
+backtest attached. The Storm Ledger at
+[storm-ledger.vercel.app](https://storm-ledger.vercel.app/) reads the same data export and presents
+it as a broadsheet narrative.
 
 **What markets and data does it use?**
 The graded backtest uses two universes on a fixed 2015-2023 window: India (primary), meaning NIFTY 50
 (^NSEI), GOLDBEES.NS, LIQUIDBEES.NS and India VIX (^INDIAVIX), and US (robustness), meaning SPY, TLT,
-GLD and ^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from FRED where it is reachable and
-a Yahoo credit-spread proxy where it is not. The Regime Monitor and Storm Ledger are separate,
-detection-only deployments that extend the same pipeline to eleven markets on a rolling window;
-see [The Regime Monitor](#the-regime-monitor-the-same-model-on-eleven-markets) for that list.
+GLD and ^VIX. Data comes from Yahoo Finance via `yfinance`, plus macro from FRED where it is
+reachable and a Yahoo credit-spread proxy where it is not.
 
 </details>
-
 
 ---
 
 ## Quickstart
-
-<details>
-<summary><b>Install with uv, run the driver, reproduce every number in this README.</b></summary>
-
-**New to backtesting?** [EXPLAINER.md](EXPLAINER.md) walks through every term this README uses,
-in plain English and in the order the pipeline runs them: look-ahead bias, walk-forward, Sharpe and
-drawdown, the deflated Sharpe, the paired difference test, and why episodes matter more than days.
 
 ```bash
 git clone https://github.com/DogInfantry/Signals-Before-Storms.git
@@ -585,34 +540,16 @@ uv run python tools/export_site_data.py all # refresh the data the site draws fr
 ```
 
 The `jump` extra pulls `jumpmodels` for the second regime engine. Without it the pipeline still runs
-end to end and simply skips the Jump Model book.
-
-The first run downloads prices from Yahoo and caches them under `data/`; every later run is offline
-and deterministic. India is the default because it is the graded universe.
+end to end and simply skips the Jump Model book. The first run downloads prices from Yahoo and
+caches them under `data/`; every later run is offline and deterministic. India is the default
+because it is the graded universe.
 
 `notebooks/driver.ipynb` runs the same pipeline India-first with the full narrative and the US as a
-robustness section, committed with all outputs and every figure embedded. Re-execute in place with:
-
-```bash
-uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3
-```
-
-</details>
-
-## Layout
+robustness section, committed with all outputs and every figure embedded. Re-execute in place with
+`uv run papermill notebooks/driver.ipynb notebooks/driver.ipynb --kernel python3`.
 
 <details>
-<summary><b>Every directory and the one thing it owns.</b></summary>
-
-There is also an interactive version of the results. `docs/` is a static site with no build step:
-`index.html` is a one-screen panel where the equity curves, drawdowns, regime bands, scorecard and
-paired-difference test are all live, so a reader can toggle books, switch gross against net of
-costs, and switch India against the US rather than take a screenshot's word for it. `story.html`
-carries the full research log. `tools/export_site_data.py` writes the JSON it reads, using the same
-functions that print the scorecard, so the page cannot drift from the tables above. Serve it with
-`python -m http.server --directory docs`; opening the file directly will not work, because `fetch`
-is blocked on the `file://` origin. `tools/export_monitor_data.py` is the equivalent exporter for
-the Regime Monitor and The Storm Ledger, writing the one `monitor.json` both sites read.
+<summary><b>Layout</b></summary>
 
 ```
 src/regime_shift/
@@ -624,63 +561,63 @@ src/regime_shift/
   backtest.py     shared cost engine, execution lag, sensitivity sweep
   metrics.py      Sharpe/Sortino/Calmar, deflated Sharpe, paired bootstrap
   benchmarks.py   60/40, equal weight, no-HMM volatility ablation
-  plots.py        16 figure helpers
+  plots.py        the figure helpers behind every chart in this README
 config/config.yaml  every knob: universe, dates, windows, costs, seed
 notebooks/          top-to-bottom driver script and notebook
-tests/              80 tests, leak-proofing, metric and palette checks
+tests/              80 passing tests, leak-proofing, metric and palette checks
 tools/              palette validator, site data exporter, monitor data exporter
 docs/               static site: interactive panel, research log, figures, exported JSON
 monitor/            Regime Monitor: vanilla dashboard reading data/monitor.json, 11 markets
 ledger/             The Storm Ledger: Next.js broadsheet, same JSON via public/data/monitor.json
 ```
 
+The driver writes 17 figures per universe to `results/`; eight are committed as PNG under
+`docs/img/` for this README, six of those also as SVG for the site. `docs/` itself has no build
+step: `index.html` is the live panel, `story.html` the full research log, and
+`tools/export_site_data.py` writes the JSON it reads using the same functions that print the
+scorecards, so the page cannot drift from the tables above. Serve it with
+`python -m http.server --directory docs`; opening the file directly will not work, because `fetch`
+is blocked on the `file://` origin.
+
 </details>
 
-## Why the key decisions
-
 <details>
-<summary><b>Why India is the primary universe, why a cash sleeve instead of a bond sleeve, why three states, and why Apache-2.0.</b></summary>
+<summary><b>Why the key decisions</b></summary>
 
 - **3 regimes (Bull / Bear / Crisis):** chosen to match the economic states allocated against, then
   checked with a BIC sweep rather than assumed. The sweep supports it on the graded Indian universe
   (a clear elbow at three: the 3 to 4 step buys only 392 of fit against 6,256 for 2 to 3) and does
   not support it on the US. Both are reported.
-- **These features:** multi-window momentum (direction), realized volatility (stress), VIX level and
-  its daily change. Nine columns per universe, and **deliberately no macro among them**. Macro is
-  loaded, plotted and interpreted, but it is kept out of the model on purpose: `build_features`
-  promotes any column that is not an asset return and not VIX into a state variable, so wiring macro
-  in would widen the feature matrix, move every number here, and spend a deflated-Sharpe trial. It
-  is measured and left out, which is what declaring a trial count in advance is for.
-- **Macro comes from Yahoo, because FRED does not answer here.** FRED is the source the brief names
-  and `data.load_macro` requests it first, keylessly. On this network `fred.stlouisfed.org` times out
-  from `requests` even where other hosts return 200, and DBnomics does not mirror the FRED provider
-  at all, so the fallback is `data.load_credit_proxies`: a corporate bond fund measured against a
-  Treasury fund of similar duration is a credit spread expressed in prices, from the one vendor that
-  does respond. Both entry points print which leg landed. The proxy earns its place by separating
-  two episodes realized volatility cannot tell apart: through the COVID crash the high-yield spread
-  widens +0.284, and through the 2022 rates selloff it moves -0.025, the other way, while volatility
-  rises in both. That signed behaviour is exactly what VIX and realized volatility provably cannot
-  supply, and it is the shape any future directional state variable would need.
-- **Only equity drives the regime.** The state is a property of the market being timed, not of the
-  sleeves used to express the view. This was a live bug: `cash_ret` was missing from the exclusion
-  list, so India silently fitted a 10th feature the US never saw, which broke the like-for-like
-  comparison and depressed every Indian HMM score (fixing it moved conditional Sharpe 0.744 to
-  0.824). A test now asserts no `*_ret` column can reach the feature matrix.
-- **No Indian bond sleeve, because no usable one exists here.** Every candidate duration ETF on
-  Yahoo was measured before rejection: SETF10GILT.NS shows 39.0% annualized volatility with 21.7%
-  zero-return days, LTGILTBEES.NS 15.7% with 9.1%, and both start mid-sample, which would truncate
-  the out-of-sample window. A 10-year G-Sec ETF does not have 39% volatility; that is thin-trading
-  noise around NAV. LIQUIDBEES.NS is used instead and is called cash, not a bond. **The 60/40
-  benchmark routes its 40% to that cash sleeve**, because dropping the leg renormalizes it to 100%
-  NIFTY and would judge a defensive strategy against a pure-equity book at four times its volatility.
-- **Benchmarks share the cost engine:** every book runs through the same `run_book` loop.
+- **These features, and deliberately no macro:** multi-window momentum, realized volatility, VIX
+  level and its daily change. Nine columns per universe. Macro is loaded, plotted and interpreted
+  but kept out of the model on purpose, because `build_features` promotes any column that is not an
+  asset return and not VIX into a state variable, so wiring macro in would move every number here
+  and spend a deflated-Sharpe trial.
+- **Macro comes from Yahoo, because FRED does not answer here.** `data.load_macro` requests FRED
+  first, keylessly; on this network `fred.stlouisfed.org` times out from `requests` even where other
+  hosts return 200. The fallback, `data.load_credit_proxies`, is a corporate bond fund measured
+  against a Treasury fund of similar duration, which is a credit spread expressed in prices. It
+  earns its place by separating two episodes realized volatility cannot tell apart: through the
+  COVID crash the high-yield spread widens +0.284, and through the 2022 rates selloff it moves
+  -0.025, the other way, while volatility rises in both. That signed behaviour is the shape any
+  future directional state variable would need.
+- **Only equity drives the regime**, because the state is a property of the market being timed, not
+  of the sleeves used to express the view. This was a live bug: `cash_ret` was missing from the
+  exclusion list, so India silently fitted a 10th feature the US never saw, which broke the
+  like-for-like comparison and depressed every Indian HMM score (fixing it moved conditional Sharpe
+  0.744 to 0.824). A test now asserts no `*_ret` column can reach the feature matrix.
+- **No Indian bond sleeve, because no usable one exists here.** Every candidate duration ETF was
+  measured before rejection: SETF10GILT.NS shows 39.0% annualized volatility with 21.7% zero-return
+  days, LTGILTBEES.NS 15.7% with 9.1%, and both start mid-sample. A 10-year G-Sec ETF does not have
+  39% volatility; that is thin-trading noise around NAV. LIQUIDBEES.NS is used instead and is called
+  cash, not a bond. **The 60/40 benchmark routes its 40% to that cash sleeve**, because dropping the
+  leg renormalizes it to 100% NIFTY and would judge a defensive strategy against a pure-equity book
+  at four times its volatility.
 
 </details>
 
-## Reproducibility
-
 <details>
-<summary><b>Seeds, pinned versions, and exactly which parts are deterministic.</b></summary>
+<summary><b>Reproducibility</b></summary>
 
 Seeds are fixed in `config/config.yaml`. Downloaded data is cached under `data/` so reruns are
 offline and deterministic.
@@ -696,35 +633,7 @@ parameter sweep: it reports a surface and adopts nothing.
 
 </details>
 
-## Figures
-
-<details>
-<summary><b>Seventeen per universe, and what each one is for.</b></summary>
-
-Seventeen per universe, written to `results/` by the driver and embedded in the notebook. Seven are
-committed as PNG under `docs/img/` for this README, six of those also as SVG for the site.
-
-`story` (the 2x2 composite this README opens with) · `returns` (raw daily returns with log-count
-marginals) · `feature_sanity` (vol_21 and VIX with COVID and 2022 shaded) · `label_profile` (the
-central finding) · `episode_bars` (effective sample size) · `paired_forest` (the Sharpe *difference*
-against one benchmark with its paired interval, a different question from `sharpe_forest`, which
-only asks whether a book beats zero) · `weight_stack` · `regime_weights` · `gross_vs_net`
-(compounding cost wedge) · `sharpe_forest` · `rolling_sharpe` · `sensitivity` · `bic_curve` ·
-`regime_overlay` · `equity_drawdown` · `transition_heatmap` · `macro_spread` (the credit spread
-under the same regimes, the one signed variable in the project)
-
-</details>
-
-## Tech stack
-
-<details>
-<summary><b>The dependency list.</b></summary>
-
-`Python 3.11+` · `hmmlearn` (Gaussian HMM) · `cvxpy` (convex optimization) · `pandas` · `numpy` ·
-`scipy` · `scikit-learn` · `yfinance` (market data) · `matplotlib` · `jumpmodels` (optional second
-regime engine) · `pydantic` (typed config) · `uv` (packaging) · `pytest` · `ruff`
-
-</details>
+---
 
 ## About this project
 

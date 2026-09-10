@@ -33,6 +33,104 @@ FORM: Instrument panel over a research log. No downloaded typeface, no framework
 <meta property="og:description" content="Volatility states carry no directional information. Four rescues failed on pre-registered terms. One apparent discovery was retracted by an episode count.">
 <meta property="og:image" content="https://raw.githubusercontent.com/DogInfantry/Signals-Before-Storms/main/docs/img/india_story.png">
 <meta name="twitter:card" content="summary_large_image">
+<!-- JSON-LD. README.md cannot carry this (GitHub sanitizes script tags out of rendered markdown),
+     so the structured-data surface for this project lives here. The FAQ entries are the same ones
+     the README answers in prose; keep the two in step or an assistant will quote a stale answer. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/DogInfantry/Signals-Before-Storms",
+      "name": "Signals-Before-Storms",
+      "alternateName": "HMM Regime Detection for Tactical Asset Allocation",
+      "description": "An open-source quantitative finance research engine that detects hidden market regimes (Bull, Bear, Crisis) with a Hidden Markov Model, then reallocates a portfolio across equity, cash and gold using per-regime convex optimization, validated with a leak-proof expanding walk-forward backtest on Indian and US markets.",
+      "codeRepository": "https://github.com/DogInfantry/Signals-Before-Storms",
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python 3.11+",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "url": "https://signals-before-storms.vercel.app",
+      "image": "https://raw.githubusercontent.com/DogInfantry/Signals-Before-Storms/main/docs/img/india_story.png",
+      "keywords": "hidden markov model, market regime detection, tactical asset allocation, walk-forward validation, deflated sharpe ratio, convex portfolio optimization, cvxpy, hmmlearn, quantitative finance research, NIFTY 50 backtest",
+      "author": {
+        "@type": "Person",
+        "name": "Anklesh Rawat",
+        "url": "https://github.com/DogInfantry"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a market regime?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A market regime is a persistent state of market behaviour, such as calm rising (Bull), stressed falling (Bear), or violent high-volatility (Crisis). Regimes are not directly observable; only their consequences, prices and volatility, are."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a Hidden Markov Model used for in finance?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A Hidden Markov Model infers an unobservable state sequence from observable data. In finance it is used to label market regimes from returns and volatility features, and to estimate the probability of switching between regimes. This project uses hmmlearn's GaussianHMM with 3 states."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is lookahead bias and how does this project prevent it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Lookahead bias occurs when a backtest uses information that would not have been available at the time of the decision. It is prevented here with causal right-aligned features, standardization fitted only on training data, per-fold model refitting, causal forward-filter decoding instead of whole-sequence Viterbi, and a one-day execution lag. Each defence is asserted by a unit test."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does HMM regime detection actually improve portfolio returns?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "On this data, no. The HMM identifies volatility regimes, and volatility carries no directional information: next-day returns rise with the volatility label rather than falling. It does reduce maximum drawdown substantially, -6.2% versus -23.7% for a static 60/40 on Indian data."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a deflated Sharpe ratio?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The deflated Sharpe ratio (Bailey and Lopez de Prado) adjusts an observed Sharpe ratio for the number of strategy variants tested, correcting the selection bias that makes the best of many backtests look better than it is. This project reports it at an honest count of 7 trials."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between a paired and a marginal confidence interval?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A marginal interval asks whether one strategy's Sharpe differs from zero. A paired interval asks whether the gap between two strategies differs from zero, by resampling both on the same dates so the shared market move cancels. Two overlapping marginal intervals do not establish that two strategies are indistinguishable; only the paired interval answers that question."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why report a negative result?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Because it is the truthful one, and because a negative result with a diagnosis is more useful than a tuned positive with an unexamined one. The diagnosis here, that volatility states carry no directional information, is a reusable finding that generalizes beyond this codebase."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can this be used for live trading?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. This is research and educational code. The headline finding is that the strategy does not separate from simple benchmarks on risk-adjusted return, and underperforms them outright on the US universe. Nothing here is investment advice."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <script type="module" defer src="site.js"></script>
