@@ -42,8 +42,12 @@ into, which is exactly why this survived a visual check. Verify a published link
   **Do NOT rewrite it as `HEAD^ HEAD`**: that was the first version and it broke on its own first
   run, because Vercel builds the TIP commit and `HEAD^ HEAD` sees only that commit, not the push.
   A six-commit push whose tip touched neither `docs/` nor the config skipped the docs build and
-  left production serving the previous `site.js`. Exit 0 skips, non-zero builds, and every failure
-  mode (unset variable, unresolvable SHA) lands on build.
+  left production serving the previous `site.js`. **Vercel's contract is exit 0 = skip, exit 1 =
+  build, ANY OTHER CODE = ERROR**, which is why every guard ends in `|| exit 1`. Without it the
+  docs project was stuck in ERROR from 2026-09-24 to 2026-09-29: `VERCEL_GIT_PREVIOUS_SHA` is the
+  last SUCCESSFUL deploy, bot commits never touch `docs/`, so that SHA fell out of Vercel's shallow
+  (~10 commit) clone, `git diff` exited 128 (`fatal: bad object`), and since no deploy succeeded the
+  SHA could never advance. Unset variable and missing SHA now both land on build.
 - Repo topics and homepage URL are set. `docs/data/*.json` revalidates every request, `/img/*`
   caches for a week with revalidation (NOT immutable: two figures changed content without changing
   filename, and immutable meant a returning reader kept the stale one for a year).
